@@ -1,4 +1,5 @@
 import express from "express";
+import morgan from "morgan";
 import swaggerUi from "swagger-ui-express";
 import { errorHandler } from "./common/errors";
 import { generateOpenAPIDocument } from "./common/openapi";
@@ -12,6 +13,10 @@ import signupRouter from "./services/signup/signup-router";
 export const app = express();
 
 app.use(express.json());
+
+if (process.env.NODE_ENV !== "test") {
+  app.use(morgan("dev"));
+}
 
 const openAPIDocument = generateOpenAPIDocument();
 
