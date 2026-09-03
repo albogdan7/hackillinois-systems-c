@@ -17,6 +17,14 @@ router.get(
 );
 
 router.get(
+  "/:id/summary",
+  asyncHandler(async (req, res) => {
+    const summary = await lib.getEventSummary(req.params.id);
+    res.json(summary);
+  })
+);
+
+router.get(
   "/:id/shifts",
   asyncHandler(async (req, res) => {
     const { status } = req.query as { status?: string };

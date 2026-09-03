@@ -79,6 +79,56 @@ describe("PUT /events/:id/cancel", () => {
   });
 });
 
+describe("GET /events/:id/summary", () => {
+  it("returns zero stats for an event with no shifts", async () => {
+    const event = await post("/events").send(BASE_EVENT);
+    const res = await get(`/events/${event.body._id}/summary`);
+    expect(res.status).toBe(200);
+    expect(res.body.totalShifts).toBe(0);
+    expect(res.body.totalCapacity).toBe(0);
+    expect(res.body.fillRate).toBe(0);
+    expect(res.body.signups.confirmed).toBe(0);
+    expect(res.body.totalVolunteerHours).toBe(0);
+  });
+
+  it("counts confirmed signups and fill rate", async () => {
+    const loc = await post("/locations").send({ name: "Summary Hall" });
+    const event = await post("/events").send(BASE_EVENT);
+    const locId = loc.body._id;
+    const eventId = event.body._id;
+
+    const shift = await post("/shifts").send({
+      title: "Summary Shift",
+      locationId: locId,
+      eventId,
+      startTime: "2026-10-10T09:00:00Z",
+      endTime: "2026-10-10T12:00:00Z",
+      maxVolunteers: 4,
+      status: "published",
+      createdBy: "admin",
+    });
+
+    const vol = await post("/volunteers").send({
+      firstName: "Sum",
+      lastName: "Mary",
+      email: "summary@example.com",
+    });
+    await post("/signups").send({ volunteerId: vol.body._id, shiftId: shift.body._id });
+
+    const res = await get(`/events/${eventId}/summary`);
+    expect(res.status).toBe(200);
+    expect(res.body.totalShifts).toBe(1);
+    expect(res.body.totalCapacity).toBe(4);
+    expect(res.body.signups.confirmed).toBe(1);
+    expect(res.body.fillRate).toBe(0.25);
+  });
+
+  it("returns 404 for unknown event", async () => {
+    const res = await get("/events/000000000000000000000000/summary");
+    expect(res.status).toBe(404);
+  });
+});
+
 describe("GET /events/:id/shifts", () => {
   it("returns shifts belonging to an event", async () => {
     const loc = await post("/locations").send({ name: "Event Hall" });

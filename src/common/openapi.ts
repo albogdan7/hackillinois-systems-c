@@ -388,6 +388,40 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
+  path: "/events/{id}/summary",
+  tags: ["Events"],
+  summary: "Get aggregate stats for an event",
+  description:
+    "Returns total shifts, capacity, fill rate, signup counts by status, and total volunteer hours logged.",
+  request: { params: z.object({ id: ObjectId }) },
+  responses: {
+    200: {
+      description: "Event summary",
+      content: {
+        "application/json": {
+          schema: z.object({
+            eventId: ObjectId,
+            totalShifts: z.number().openapi({ example: 8 }),
+            totalCapacity: z.number().openapi({ example: 40 }),
+            fillRate: z.number().openapi({ example: 0.75, description: "confirmed / totalCapacity" }),
+            signups: z.object({
+              confirmed: z.number().openapi({ example: 30 }),
+              waitlisted: z.number().openapi({ example: 5 }),
+              cancelled: z.number().openapi({ example: 2 }),
+              noShow: z.number().openapi({ example: 1 }),
+              completed: z.number().openapi({ example: 28 }),
+            }),
+            totalVolunteerHours: z.number().openapi({ example: 84.5 }),
+          }),
+        },
+      },
+    },
+    404: COMMON_ERRORS[404],
+  },
+});
+
+registry.registerPath({
+  method: "get",
   path: "/events/{id}/shifts",
   tags: ["Events"],
   summary: "List all shifts belonging to an event",
@@ -559,6 +593,46 @@ registry.registerPath({
       },
     },
     404: COMMON_ERRORS[404],
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/volunteers/leaderboard",
+  tags: ["Volunteers"],
+  summary: "Top volunteers ranked by total hours completed",
+  request: {
+    query: z.object({
+      limit: z.coerce
+        .number()
+        .int()
+        .min(1)
+        .max(100)
+        .default(10)
+        .optional()
+        .openapi({ example: 10, description: "Max results to return (default 10, max 100)" }),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Leaderboard",
+      content: {
+        "application/json": {
+          schema: z.object({
+            leaderboard: z.array(
+              z.object({
+                volunteerId: ObjectId,
+                firstName: z.string().openapi({ example: "Jane" }),
+                lastName: z.string().openapi({ example: "Doe" }),
+                email: z.string().openapi({ example: "jane@example.com" }),
+                totalHours: z.number().openapi({ example: 12.5 }),
+                shiftsCompleted: z.number().openapi({ example: 4 }),
+              })
+            ),
+          }),
+        },
+      },
+    },
   },
 });
 

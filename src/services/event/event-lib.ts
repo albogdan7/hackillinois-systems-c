@@ -2,6 +2,7 @@ import { APIError } from "../../common/errors";
 import { paginate, PaginationInput } from "../../common/paginate";
 import { EventModel, CreateEventInput, UpdateEventInput } from "./event-schemas";
 import { ShiftModel } from "../shift/shift-schemas";
+import { SignupModel } from "../signup/signup-schemas";
 
 export async function getAllEvents(pagination: PaginationInput, status?: string) {
   const filter = status ? { status } : {};
@@ -45,6 +46,54 @@ export async function cancelEvent(id: string) {
 export async function deleteEvent(id: string) {
   const event = await EventModel.findByIdAndDelete(id);
   if (!event) throw new APIError(404, "EventNotFound", "Event not found");
+}
+
+export async function getEventSummary(id: string) {
+  await getEventById(id);
+
+  const shifts = await ShiftModel.find({ eventId: id });
+  const shiftIds = shifts.map((s) => s._id);
+  const totalCapacity = shifts.reduce((sum, s) => sum + s.maxVolunteers, 0);
+
+  const statusCounts: { _id: string; count: number }[] = await SignupModel.aggregate([
+    { $match: { shiftId: { $in: shiftIds } } },
+    { $group: { _id: "$status", count: { $sum: 1 } } },
+  ]);
+
+  const hoursAgg: { totalHours: number }[] = await SignupModel.aggregate([
+    {
+      $match: {
+        shiftId: { $in: shiftIds },
+        status: "completed",
+        checkedInAt: { $exists: true },
+        checkedOutAt: { $exists: true },
+      },
+    },
+    {
+      $project: {
+        hours: { $divide: [{ $subtract: ["$checkedOutAt", "$checkedInAt"] }, 3600000] },
+      },
+    },
+    { $group: { _id: null, totalHours: { $sum: "$hours" } } },
+  ]);
+
+  const byStatus = Object.fromEntries(statusCounts.map((s) => [s._id, s.count]));
+  const confirmed = byStatus["confirmed"] ?? 0;
+
+  return {
+    eventId: id,
+    totalShifts: shifts.length,
+    totalCapacity,
+    fillRate: totalCapacity > 0 ? Math.round((confirmed / totalCapacity) * 1000) / 1000 : 0,
+    signups: {
+      confirmed,
+      waitlisted: byStatus["waitlisted"] ?? 0,
+      cancelled: byStatus["cancelled"] ?? 0,
+      noShow: byStatus["no-show"] ?? 0,
+      completed: byStatus["completed"] ?? 0,
+    },
+    totalVolunteerHours: Math.round((hoursAgg[0]?.totalHours ?? 0) * 100) / 100,
+  };
 }
 
 export async function getEventShifts(
