@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { APIError } from "../../common/errors";
+import { paginate, PaginationInput } from "../../common/paginate";
 import { SignupModel, SignupStatus, CreateSignupInput } from "./signup-schemas";
 import { VolunteerModel } from "../volunteer/volunteer-schemas";
 import { ShiftModel, IShift } from "../shift/shift-schemas";
@@ -12,16 +13,15 @@ const VALID_TRANSITIONS: Record<SignupStatus, SignupStatus[]> = {
   completed: [],
 };
 
-export async function getAllSignups(filters: {
-  volunteerId?: string;
-  shiftId?: string;
-  status?: string;
-}) {
+export async function getAllSignups(
+  filters: { volunteerId?: string; shiftId?: string; status?: string },
+  pagination: PaginationInput
+) {
   const query: Record<string, unknown> = {};
   if (filters.volunteerId) query.volunteerId = filters.volunteerId;
   if (filters.shiftId) query.shiftId = filters.shiftId;
   if (filters.status) query.status = filters.status;
-  return SignupModel.find(query).sort({ createdAt: -1 });
+  return paginate(SignupModel, query, { createdAt: -1 }, pagination);
 }
 
 export async function getSignupById(id: string) {

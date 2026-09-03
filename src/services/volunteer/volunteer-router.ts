@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { asyncHandler, APIError } from "../../common/errors";
+import { PaginationSchema } from "../../common/paginate";
 import { CreateVolunteerSchema, UpdateVolunteerSchema } from "./volunteer-schemas";
 import * as lib from "./volunteer-lib";
 
@@ -7,17 +8,19 @@ const router = Router();
 
 router.get(
   "/",
-  asyncHandler(async (_req, res) => {
-    const volunteers = await lib.getAllVolunteers();
-    res.json({ volunteers });
+  asyncHandler(async (req, res) => {
+    const pagination = PaginationSchema.parse(req.query);
+    const { data: volunteers, pagination: meta } = await lib.getAllVolunteers(pagination);
+    res.json({ volunteers, pagination: meta });
   })
 );
 
 router.get(
   "/:id/signups",
   asyncHandler(async (req, res) => {
-    const signups = await lib.getVolunteerSignups(req.params.id);
-    res.json({ signups });
+    const pagination = PaginationSchema.parse(req.query);
+    const { data: signups, pagination: meta } = await lib.getVolunteerSignups(req.params.id, pagination);
+    res.json({ signups, pagination: meta });
   })
 );
 

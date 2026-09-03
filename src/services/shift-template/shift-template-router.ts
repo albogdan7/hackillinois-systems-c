@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { asyncHandler, APIError } from "../../common/errors";
+import { PaginationSchema } from "../../common/paginate";
 import { CreateShiftTemplateSchema, UpdateShiftTemplateSchema } from "./shift-template-schemas";
 import * as lib from "./shift-template-lib";
 
@@ -7,9 +8,10 @@ const router = Router();
 
 router.get(
   "/",
-  asyncHandler(async (_req, res) => {
-    const templates = await lib.getAllShiftTemplates();
-    res.json({ templates });
+  asyncHandler(async (req, res) => {
+    const pagination = PaginationSchema.parse(req.query);
+    const { data: templates, pagination: meta } = await lib.getAllShiftTemplates(pagination);
+    res.json({ templates, pagination: meta });
   })
 );
 

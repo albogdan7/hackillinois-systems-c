@@ -1,4 +1,5 @@
 import { APIError } from "../../common/errors";
+import { paginate, PaginationInput } from "../../common/paginate";
 import {
   VolunteerModel,
   CreateVolunteerInput,
@@ -6,8 +7,8 @@ import {
 } from "./volunteer-schemas";
 import { SignupModel } from "../signup/signup-schemas";
 
-export async function getAllVolunteers() {
-  return VolunteerModel.find().sort({ lastName: 1, firstName: 1 });
+export async function getAllVolunteers(pagination: PaginationInput) {
+  return paginate(VolunteerModel, {}, { lastName: 1, firstName: 1 }, pagination);
 }
 
 export async function getVolunteerById(id: string) {
@@ -53,11 +54,9 @@ export async function deleteVolunteer(id: string) {
   }
 }
 
-export async function getVolunteerSignups(id: string) {
+export async function getVolunteerSignups(id: string, pagination: PaginationInput) {
   await getVolunteerById(id);
-  return SignupModel.find({ volunteerId: id })
-    .populate("shiftId")
-    .sort({ createdAt: -1 });
+  return paginate(SignupModel, { volunteerId: id }, { createdAt: -1 }, pagination, "shiftId");
 }
 
 export async function getVolunteerHours(id: string) {

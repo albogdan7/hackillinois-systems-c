@@ -5,14 +5,36 @@ describe("GET /locations", () => {
     const res = await get("/locations");
     expect(res.status).toBe(200);
     expect(res.body.locations).toEqual([]);
+    expect(res.body.pagination).toBeDefined();
+    expect(res.body.pagination.total).toBe(0);
   });
 
-  it("returns all locations", async () => {
+  it("returns all locations with pagination metadata", async () => {
     await post("/locations").send({ name: "Main Hall" });
     await post("/locations").send({ name: "Room 101" });
     const res = await get("/locations");
     expect(res.status).toBe(200);
     expect(res.body.locations).toHaveLength(2);
+    expect(res.body.pagination.total).toBe(2);
+    expect(res.body.pagination.page).toBe(1);
+    expect(res.body.pagination.totalPages).toBe(1);
+  });
+
+  it("paginates results", async () => {
+    await post("/locations").send({ name: "Room A" });
+    await post("/locations").send({ name: "Room B" });
+    await post("/locations").send({ name: "Room C" });
+
+    const page1 = await get("/locations?page=1&limit=2");
+    expect(page1.body.locations).toHaveLength(2);
+    expect(page1.body.pagination.hasNext).toBe(true);
+    expect(page1.body.pagination.hasPrev).toBe(false);
+    expect(page1.body.pagination.totalPages).toBe(2);
+
+    const page2 = await get("/locations?page=2&limit=2");
+    expect(page2.body.locations).toHaveLength(1);
+    expect(page2.body.pagination.hasNext).toBe(false);
+    expect(page2.body.pagination.hasPrev).toBe(true);
   });
 });
 

@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { asyncHandler, APIError } from "../../common/errors";
+import { PaginationSchema } from "../../common/paginate";
 import {
   CreateSignupSchema,
   CancelSignupSchema,
@@ -13,8 +14,9 @@ router.get(
   "/",
   asyncHandler(async (req, res) => {
     const { volunteerId, shiftId, status } = req.query as Record<string, string>;
-    const signups = await lib.getAllSignups({ volunteerId, shiftId, status });
-    res.json({ signups });
+    const pagination = PaginationSchema.parse(req.query);
+    const { data: signups, pagination: meta } = await lib.getAllSignups({ volunteerId, shiftId, status }, pagination);
+    res.json({ signups, pagination: meta });
   })
 );
 

@@ -1,9 +1,10 @@
 import { APIError } from "../../common/errors";
+import { paginate, PaginationInput } from "../../common/paginate";
 import { EventModel, CreateEventInput, UpdateEventInput } from "./event-schemas";
 
-export async function getAllEvents(status?: string) {
+export async function getAllEvents(pagination: PaginationInput, status?: string) {
   const filter = status ? { status } : {};
-  return EventModel.find(filter).sort({ startDate: 1 });
+  return paginate(EventModel, filter, { startDate: 1 }, pagination);
 }
 
 export async function getEventById(id: string) {

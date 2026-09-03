@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { APIError } from "../../common/errors";
+import { paginate, PaginationInput } from "../../common/paginate";
 import {
   ShiftTemplateModel,
   IShiftTemplate,
@@ -11,8 +12,8 @@ import { ShiftModel } from "../shift/shift-schemas";
 import { LocationModel } from "../location/location-schemas";
 import { EventModel } from "../event/event-schemas";
 
-export async function getAllShiftTemplates() {
-  return ShiftTemplateModel.find().sort({ createdAt: -1 });
+export async function getAllShiftTemplates(pagination: PaginationInput) {
+  return paginate(ShiftTemplateModel, {}, { createdAt: -1 }, pagination);
 }
 
 export async function getShiftTemplateById(id: string) {

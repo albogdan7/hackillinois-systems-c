@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { asyncHandler, APIError } from "../../common/errors";
+import { PaginationSchema } from "../../common/paginate";
 import { CreateLocationSchema, UpdateLocationSchema } from "./location-schemas";
 import * as lib from "./location-lib";
 
@@ -7,9 +8,10 @@ const router = Router();
 
 router.get(
   "/",
-  asyncHandler(async (_req, res) => {
-    const locations = await lib.getAllLocations();
-    res.json({ locations });
+  asyncHandler(async (req, res) => {
+    const pagination = PaginationSchema.parse(req.query);
+    const { data: locations, pagination: meta } = await lib.getAllLocations(pagination);
+    res.json({ locations, pagination: meta });
   })
 );
 

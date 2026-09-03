@@ -1,16 +1,20 @@
 import { APIError } from "../../common/errors";
+import { paginate, PaginationInput } from "../../common/paginate";
 import { ShiftModel, CreateShiftInput, UpdateShiftInput } from "./shift-schemas";
 import { LocationModel } from "../location/location-schemas";
 import { EventModel } from "../event/event-schemas";
 import { SignupModel } from "../signup/signup-schemas";
 
-export async function getAllShifts(filters: {
-  status?: string;
-  eventId?: string;
-  locationId?: string;
-  from?: string;
-  to?: string;
-}) {
+export async function getAllShifts(
+  filters: {
+    status?: string;
+    eventId?: string;
+    locationId?: string;
+    from?: string;
+    to?: string;
+  },
+  pagination: PaginationInput
+) {
   const query: Record<string, unknown> = {};
   if (filters.status) query.status = filters.status;
   if (filters.eventId) query.eventId = filters.eventId;
@@ -20,7 +24,7 @@ export async function getAllShifts(filters: {
     if (filters.from) (query.startTime as Record<string, unknown>).$gte = new Date(filters.from);
     if (filters.to) (query.startTime as Record<string, unknown>).$lte = new Date(filters.to);
   }
-  return ShiftModel.find(query).sort({ startTime: 1 });
+  return paginate(ShiftModel, query, { startTime: 1 }, pagination);
 }
 
 export async function getShiftById(id: string) {
@@ -100,9 +104,7 @@ export async function deleteShift(id: string) {
   if (!shift) throw new APIError(404, "ShiftNotFound", "Shift not found");
 }
 
-export async function getShiftSignups(id: string) {
+export async function getShiftSignups(id: string, pagination: PaginationInput) {
   await getShiftById(id);
-  return SignupModel.find({ shiftId: id })
-    .populate("volunteerId")
-    .sort({ createdAt: 1 });
+  return paginate(SignupModel, { shiftId: id }, { createdAt: 1 }, pagination, "volunteerId");
 }

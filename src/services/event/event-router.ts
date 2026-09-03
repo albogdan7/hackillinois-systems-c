@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { asyncHandler, APIError } from "../../common/errors";
+import { PaginationSchema } from "../../common/paginate";
 import { CreateEventSchema, UpdateEventSchema } from "./event-schemas";
 import * as lib from "./event-lib";
 
@@ -9,8 +10,9 @@ router.get(
   "/",
   asyncHandler(async (req, res) => {
     const { status } = req.query as { status?: string };
-    const events = await lib.getAllEvents(status);
-    res.json({ events });
+    const pagination = PaginationSchema.parse(req.query);
+    const { data: events, pagination: meta } = await lib.getAllEvents(pagination, status);
+    res.json({ events, pagination: meta });
   })
 );
 

@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { asyncHandler, APIError } from "../../common/errors";
+import { PaginationSchema } from "../../common/paginate";
 import { CreateShiftSchema, UpdateShiftSchema } from "./shift-schemas";
 import * as lib from "./shift-lib";
 
@@ -9,16 +10,18 @@ router.get(
   "/",
   asyncHandler(async (req, res) => {
     const { status, eventId, locationId, from, to } = req.query as Record<string, string>;
-    const shifts = await lib.getAllShifts({ status, eventId, locationId, from, to });
-    res.json({ shifts });
+    const pagination = PaginationSchema.parse(req.query);
+    const { data: shifts, pagination: meta } = await lib.getAllShifts({ status, eventId, locationId, from, to }, pagination);
+    res.json({ shifts, pagination: meta });
   })
 );
 
 router.get(
   "/:id/signups",
   asyncHandler(async (req, res) => {
-    const signups = await lib.getShiftSignups(req.params.id);
-    res.json({ signups });
+    const pagination = PaginationSchema.parse(req.query);
+    const { data: signups, pagination: meta } = await lib.getShiftSignups(req.params.id, pagination);
+    res.json({ signups, pagination: meta });
   })
 );
 

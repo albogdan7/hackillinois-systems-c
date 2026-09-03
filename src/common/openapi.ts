@@ -12,6 +12,20 @@ const registry = new OpenAPIRegistry();
 
 // ─── Shared primitives ───────────────────────────────────────────────────────
 
+const PaginationQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1).openapi({ example: 1 }),
+  limit: z.coerce.number().int().min(1).max(100).default(20).openapi({ example: 20 }),
+});
+
+const PaginationMetaSchema = z.object({
+  page: z.number().openapi({ example: 1 }),
+  limit: z.number().openapi({ example: 20 }),
+  total: z.number().openapi({ example: 42 }),
+  totalPages: z.number().openapi({ example: 3 }),
+  hasNext: z.boolean().openapi({ example: true }),
+  hasPrev: z.boolean().openapi({ example: false }),
+});
+
 const ObjectId = z.string().openapi({ example: "507f1f77bcf86cd799439011" });
 
 const Timestamps = z.object({
@@ -172,12 +186,13 @@ registry.registerPath({
   path: "/locations",
   tags: ["Locations"],
   summary: "List all locations",
+  request: { query: PaginationQuerySchema },
   responses: {
     200: {
       description: "List of locations",
       content: {
         "application/json": {
-          schema: z.object({ locations: z.array(LocationResponse) }),
+          schema: z.object({ locations: z.array(LocationResponse), pagination: PaginationMetaSchema }),
         },
       },
     },
@@ -267,14 +282,14 @@ registry.registerPath({
   tags: ["Events"],
   summary: "List all events",
   request: {
-    query: z.object({
+    query: PaginationQuerySchema.extend({
       status: z.enum(["draft", "published", "cancelled"]).optional(),
     }),
   },
   responses: {
     200: {
       description: "List of events",
-      content: { "application/json": { schema: z.object({ events: z.array(EventResponse) }) } },
+      content: { "application/json": { schema: z.object({ events: z.array(EventResponse), pagination: PaginationMetaSchema }) } },
     },
   },
 });
@@ -374,10 +389,11 @@ registry.registerPath({
   path: "/volunteers",
   tags: ["Volunteers"],
   summary: "List all volunteers",
+  request: { query: PaginationQuerySchema },
   responses: {
     200: {
       description: "List of volunteers",
-      content: { "application/json": { schema: z.object({ volunteers: z.array(VolunteerResponse) }) } },
+      content: { "application/json": { schema: z.object({ volunteers: z.array(VolunteerResponse), pagination: PaginationMetaSchema }) } },
     },
   },
 });
@@ -507,7 +523,7 @@ registry.registerPath({
   tags: ["Shifts"],
   summary: "List shifts with optional filters",
   request: {
-    query: z.object({
+    query: PaginationQuerySchema.extend({
       status: z.enum(["draft", "published", "cancelled"]).optional(),
       eventId: ObjectId.optional(),
       locationId: ObjectId.optional(),
@@ -518,7 +534,7 @@ registry.registerPath({
   responses: {
     200: {
       description: "List of shifts",
-      content: { "application/json": { schema: z.object({ shifts: z.array(ShiftResponse) }) } },
+      content: { "application/json": { schema: z.object({ shifts: z.array(ShiftResponse), pagination: PaginationMetaSchema }) } },
     },
   },
 });
@@ -641,11 +657,12 @@ registry.registerPath({
   path: "/shift-templates",
   tags: ["Shift Templates"],
   summary: "List all shift templates",
+  request: { query: PaginationQuerySchema },
   responses: {
     200: {
       description: "List of templates",
       content: {
-        "application/json": { schema: z.object({ templates: z.array(ShiftTemplateResponse) }) },
+        "application/json": { schema: z.object({ templates: z.array(ShiftTemplateResponse), pagination: PaginationMetaSchema }) },
       },
     },
   },
@@ -747,7 +764,7 @@ registry.registerPath({
   tags: ["Signups"],
   summary: "List signups with optional filters",
   request: {
-    query: z.object({
+    query: PaginationQuerySchema.extend({
       volunteerId: ObjectId.optional(),
       shiftId: ObjectId.optional(),
       status: z.enum(["confirmed", "waitlisted", "cancelled", "no-show", "completed"]).optional(),
@@ -756,7 +773,7 @@ registry.registerPath({
   responses: {
     200: {
       description: "List of signups",
-      content: { "application/json": { schema: z.object({ signups: z.array(SignupResponse) }) } },
+      content: { "application/json": { schema: z.object({ signups: z.array(SignupResponse), pagination: PaginationMetaSchema }) } },
     },
   },
 });
