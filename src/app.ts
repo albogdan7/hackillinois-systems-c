@@ -1,5 +1,7 @@
 import express from "express";
+import swaggerUi from "swagger-ui-express";
 import { errorHandler } from "./common/errors";
+import { generateOpenAPIDocument } from "./common/openapi";
 import locationRouter from "./services/location/location-router";
 import eventRouter from "./services/event/event-router";
 import volunteerRouter from "./services/volunteer/volunteer-router";
@@ -11,9 +13,14 @@ export const app = express();
 
 app.use(express.json());
 
+const openAPIDocument = generateOpenAPIDocument();
+
 app.get("/", (_req, res) => {
-  res.json({ name: "Volunteer Shift Signup API", version: "1.0.0" });
+  res.json({ name: "Volunteer Shift Signup API", version: "1.0.0", docs: "/docs" });
 });
+
+app.use("/docs", swaggerUi.serve, swaggerUi.setup(openAPIDocument));
+app.get("/docs.json", (_req, res) => res.json(openAPIDocument));
 
 app.use("/locations", locationRouter);
 app.use("/events", eventRouter);
