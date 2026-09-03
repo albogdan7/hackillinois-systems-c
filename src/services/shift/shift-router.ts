@@ -9,10 +9,10 @@ const router = Router();
 router.get(
   "/",
   asyncHandler(async (req, res) => {
-    const { status, eventId, locationId, from, to } = req.query as Record<string, string>;
+    const { status, eventId, locationId, skill, from, to } = req.query as Record<string, string>;
     const pagination = PaginationSchema.parse(req.query);
     const { data: shifts, pagination: meta } = await lib.getAllShifts(
-      { status, eventId, locationId, from, to },
+      { status, eventId, locationId, skill, from, to },
       pagination
     );
     res.json({ shifts, pagination: meta });
@@ -54,6 +54,14 @@ router.put(
   asyncHandler(async (req, res) => {
     const shift = await lib.cancelShift(req.params.id);
     res.json(shift);
+  })
+);
+
+router.put(
+  "/:id/mark-noshows",
+  asyncHandler(async (req, res) => {
+    const result = await lib.markNoShows(req.params.id);
+    res.json(result);
   })
 );
 

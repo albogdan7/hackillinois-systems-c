@@ -17,6 +17,20 @@ router.get(
 );
 
 router.get(
+  "/:id/shifts",
+  asyncHandler(async (req, res) => {
+    const { status } = req.query as { status?: string };
+    const pagination = PaginationSchema.parse(req.query);
+    const { data: shifts, pagination: meta } = await lib.getEventShifts(
+      req.params.id,
+      pagination,
+      status
+    );
+    res.json({ shifts, pagination: meta });
+  })
+);
+
+router.get(
   "/:id",
   asyncHandler(async (req, res) => {
     const event = await lib.getEventById(req.params.id);

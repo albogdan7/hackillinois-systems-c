@@ -10,6 +10,7 @@ export async function getAllShifts(
     status?: string;
     eventId?: string;
     locationId?: string;
+    skill?: string;
     from?: string;
     to?: string;
   },
@@ -19,6 +20,7 @@ export async function getAllShifts(
   if (filters.status) query.status = filters.status;
   if (filters.eventId) query.eventId = filters.eventId;
   if (filters.locationId) query.locationId = filters.locationId;
+  if (filters.skill) query.requiredSkills = filters.skill;
   if (filters.from || filters.to) {
     query.startTime = {};
     if (filters.from) (query.startTime as Record<string, unknown>).$gte = new Date(filters.from);
@@ -120,4 +122,16 @@ export async function deleteShift(id: string) {
 export async function getShiftSignups(id: string, pagination: PaginationInput) {
   await getShiftById(id);
   return paginate(SignupModel, { shiftId: id }, { createdAt: 1 }, pagination, "volunteerId");
+}
+
+export async function markNoShows(id: string) {
+  const shift = await getShiftById(id);
+  if (shift.status !== "cancelled" && new Date() < shift.endTime) {
+    throw new APIError(400, "ShiftNotEnded", "Cannot mark no-shows before the shift has ended");
+  }
+  const result = await SignupModel.updateMany(
+    { shiftId: id, status: "confirmed", checkedInAt: { $exists: false } },
+    { status: "no-show" }
+  );
+  return { markedCount: result.modifiedCount };
 }

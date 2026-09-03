@@ -1,6 +1,7 @@
 import { APIError } from "../../common/errors";
 import { paginate, PaginationInput } from "../../common/paginate";
 import { EventModel, CreateEventInput, UpdateEventInput } from "./event-schemas";
+import { ShiftModel } from "../shift/shift-schemas";
 
 export async function getAllEvents(pagination: PaginationInput, status?: string) {
   const filter = status ? { status } : {};
@@ -44,4 +45,15 @@ export async function cancelEvent(id: string) {
 export async function deleteEvent(id: string) {
   const event = await EventModel.findByIdAndDelete(id);
   if (!event) throw new APIError(404, "EventNotFound", "Event not found");
+}
+
+export async function getEventShifts(
+  id: string,
+  pagination: PaginationInput,
+  status?: string
+) {
+  await getEventById(id);
+  const filter: Record<string, unknown> = { eventId: id };
+  if (status) filter.status = status;
+  return paginate(ShiftModel, filter, { startTime: 1 }, pagination);
 }

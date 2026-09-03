@@ -387,6 +387,30 @@ registry.registerPath({
 });
 
 registry.registerPath({
+  method: "get",
+  path: "/events/{id}/shifts",
+  tags: ["Events"],
+  summary: "List all shifts belonging to an event",
+  request: {
+    params: z.object({ id: ObjectId }),
+    query: PaginationQuerySchema.extend({
+      status: z.enum(["draft", "published", "cancelled"]).optional(),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Shifts for the event",
+      content: {
+        "application/json": {
+          schema: z.object({ shifts: z.array(ShiftResponse), pagination: PaginationMetaSchema }),
+        },
+      },
+    },
+    404: COMMON_ERRORS[404],
+  },
+});
+
+registry.registerPath({
   method: "delete",
   path: "/events/{id}",
   tags: ["Events"],
@@ -550,6 +574,7 @@ registry.registerPath({
       status: z.enum(["draft", "published", "cancelled"]).optional(),
       eventId: ObjectId.optional(),
       locationId: ObjectId.optional(),
+      skill: z.enum(SKILLS).optional().openapi({ description: "Filter by required skill" }),
       from: z.string().optional().openapi({ example: "2026-10-01T00:00:00Z" }),
       to: z.string().optional().openapi({ example: "2026-10-31T23:59:59Z" }),
     }),
@@ -651,6 +676,28 @@ registry.registerPath({
   request: { params: z.object({ id: ObjectId }) },
   responses: {
     200: { description: "Cancelled", content: { "application/json": { schema: ShiftResponse } } },
+    400: COMMON_ERRORS[400],
+    404: COMMON_ERRORS[404],
+  },
+});
+
+registry.registerPath({
+  method: "put",
+  path: "/shifts/{id}/mark-noshows",
+  tags: ["Shifts"],
+  summary: "Bulk-mark no-shows — requires shift to have ended",
+  description:
+    "Marks all confirmed signups without a check-in as 'no-show'. The shift's endTime must be in the past.",
+  request: { params: z.object({ id: ObjectId }) },
+  responses: {
+    200: {
+      description: "No-shows marked",
+      content: {
+        "application/json": {
+          schema: z.object({ markedCount: z.number().openapi({ example: 3 }) }),
+        },
+      },
+    },
     400: COMMON_ERRORS[400],
     404: COMMON_ERRORS[404],
   },

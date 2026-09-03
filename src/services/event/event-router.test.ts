@@ -79,6 +79,78 @@ describe("PUT /events/:id/cancel", () => {
   });
 });
 
+describe("GET /events/:id/shifts", () => {
+  it("returns shifts belonging to an event", async () => {
+    const loc = await post("/locations").send({ name: "Event Hall" });
+    const locId = loc.body._id;
+    const event = await post("/events").send(BASE_EVENT);
+    const eventId = event.body._id;
+
+    await post("/shifts").send({
+      title: "Shift A",
+      locationId: locId,
+      eventId,
+      startTime: "2026-10-10T09:00:00Z",
+      endTime: "2026-10-10T12:00:00Z",
+      maxVolunteers: 3,
+      status: "published",
+      createdBy: "admin",
+    });
+    await post("/shifts").send({
+      title: "Shift B",
+      locationId: locId,
+      startTime: "2026-10-10T13:00:00Z",
+      endTime: "2026-10-10T16:00:00Z",
+      maxVolunteers: 3,
+      status: "published",
+      createdBy: "admin",
+    });
+
+    const res = await get(`/events/${eventId}/shifts`);
+    expect(res.status).toBe(200);
+    expect(res.body.shifts).toHaveLength(1);
+    expect(res.body.shifts[0].title).toBe("Shift A");
+    expect(res.body.pagination).toBeDefined();
+  });
+
+  it("returns 404 for unknown event", async () => {
+    const res = await get("/events/000000000000000000000000/shifts");
+    expect(res.status).toBe(404);
+  });
+
+  it("filters event shifts by status", async () => {
+    const loc = await post("/locations").send({ name: "Status Hall" });
+    const event = await post("/events").send(BASE_EVENT);
+    const locId = loc.body._id;
+    const eventId = event.body._id;
+
+    await post("/shifts").send({
+      title: "Published Shift",
+      locationId: locId,
+      eventId,
+      startTime: "2026-10-10T09:00:00Z",
+      endTime: "2026-10-10T12:00:00Z",
+      maxVolunteers: 3,
+      status: "published",
+      createdBy: "admin",
+    });
+    await post("/shifts").send({
+      title: "Draft Shift",
+      locationId: locId,
+      eventId,
+      startTime: "2026-10-11T09:00:00Z",
+      endTime: "2026-10-11T12:00:00Z",
+      maxVolunteers: 3,
+      status: "draft",
+      createdBy: "admin",
+    });
+
+    const res = await get(`/events/${eventId}/shifts?status=published`);
+    expect(res.body.shifts).toHaveLength(1);
+    expect(res.body.shifts[0].status).toBe("published");
+  });
+});
+
 describe("DELETE /events/:id", () => {
   it("deletes an event", async () => {
     const created = await post("/events").send(BASE_EVENT);
