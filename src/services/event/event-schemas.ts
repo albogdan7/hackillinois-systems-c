@@ -54,14 +54,10 @@ export const UpdateEventSchema = z
     endDate: z.coerce.date().optional(),
     updatedBy: z.string().min(1).optional(),
   })
-  .refine(
-    (d) =>
-      !d.startDate || !d.endDate || d.endDate > d.startDate,
-    {
-      message: "endDate must be after startDate",
-      path: ["endDate"],
-    }
-  );
+  .refine((d) => !d.startDate || !d.endDate || d.endDate > d.startDate, {
+    message: "endDate must be after startDate",
+    path: ["endDate"],
+  });
 
 export type CreateEventInput = z.infer<typeof CreateEventSchema>;
 export type UpdateEventInput = z.infer<typeof UpdateEventSchema>;

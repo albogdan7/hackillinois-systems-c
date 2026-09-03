@@ -33,10 +33,7 @@ const VolunteerSchema = new mongoose.Schema<IVolunteer>(
   { timestamps: true }
 );
 
-export const VolunteerModel = mongoose.model<IVolunteer>(
-  "Volunteer",
-  VolunteerSchema
-);
+export const VolunteerModel = mongoose.model<IVolunteer>("Volunteer", VolunteerSchema);
 
 const EmergencyContactSchema = z.object({
   name: z.string().min(1),

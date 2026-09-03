@@ -73,10 +73,10 @@ export const UpdateShiftSchema = z
     requiredSkills: z.array(SkillEnum).optional(),
     updatedBy: z.string().min(1).optional(),
   })
-  .refine(
-    (d) => !d.startTime || !d.endTime || d.endTime > d.startTime,
-    { message: "endTime must be after startTime", path: ["endTime"] }
-  );
+  .refine((d) => !d.startTime || !d.endTime || d.endTime > d.startTime, {
+    message: "endTime must be after startTime",
+    path: ["endTime"],
+  });
 
 export type CreateShiftInput = z.infer<typeof CreateShiftSchema>;
 export type UpdateShiftInput = z.infer<typeof UpdateShiftSchema>;

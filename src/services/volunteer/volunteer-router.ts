@@ -19,7 +19,10 @@ router.get(
   "/:id/signups",
   asyncHandler(async (req, res) => {
     const pagination = PaginationSchema.parse(req.query);
-    const { data: signups, pagination: meta } = await lib.getVolunteerSignups(req.params.id, pagination);
+    const { data: signups, pagination: meta } = await lib.getVolunteerSignups(
+      req.params.id,
+      pagination
+    );
     res.json({ signups, pagination: meta });
   })
 );

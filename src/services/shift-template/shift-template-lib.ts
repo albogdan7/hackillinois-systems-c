@@ -27,7 +27,11 @@ export async function createShiftTemplate(data: CreateShiftTemplateInput) {
   if (!location) throw new APIError(404, "LocationNotFound", "Location not found");
 
   if (location.capacity && data.maxVolunteers > location.capacity) {
-    throw new APIError(400, "ExceedsLocationCapacity", `maxVolunteers exceeds location capacity (${location.capacity})`);
+    throw new APIError(
+      400,
+      "ExceedsLocationCapacity",
+      `maxVolunteers exceeds location capacity (${location.capacity})`
+    );
   }
 
   if (data.eventId) {
@@ -116,9 +120,7 @@ function generateOccurrenceDates(startDate: Date, rule: IRecurrenceRule): Date[]
   return dates;
 }
 
-async function generateShifts(
-  template: IShiftTemplate & { _id: mongoose.Types.ObjectId }
-) {
+async function generateShifts(template: IShiftTemplate & { _id: mongoose.Types.ObjectId }) {
   const [hoursStr, minutesStr] = template.startTimeOfDay.split(":");
   const hours = parseInt(hoursStr, 10);
   const minutes = parseInt(minutesStr, 10);

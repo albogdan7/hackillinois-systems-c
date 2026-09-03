@@ -10,7 +10,7 @@ const MONGO_URI = process.env.MONGO_URI ?? "mongodb://localhost:27017/volunteer"
 async function start() {
   await connectDB(MONGO_URI);
   app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    process.stdout.write(`Server running on port ${PORT}\n`);
   });
 }
 

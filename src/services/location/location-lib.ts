@@ -1,10 +1,6 @@
 import { APIError } from "../../common/errors";
 import { paginate, PaginationInput } from "../../common/paginate";
-import {
-  LocationModel,
-  CreateLocationInput,
-  UpdateLocationInput,
-} from "./location-schemas";
+import { LocationModel, CreateLocationInput, UpdateLocationInput } from "./location-schemas";
 
 export async function getAllLocations(pagination: PaginationInput) {
   return paginate(LocationModel, {}, { name: 1 }, pagination);

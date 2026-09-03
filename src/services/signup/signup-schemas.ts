@@ -1,12 +1,7 @@
 import mongoose from "mongoose";
 import { z } from "zod";
 
-export type SignupStatus =
-  | "confirmed"
-  | "waitlisted"
-  | "cancelled"
-  | "no-show"
-  | "completed";
+export type SignupStatus = "confirmed" | "waitlisted" | "cancelled" | "no-show" | "completed";
 
 export interface ISignup {
   volunteerId: mongoose.Types.ObjectId;

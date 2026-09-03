@@ -18,10 +18,7 @@ const LocationSchema = new mongoose.Schema<ILocation>(
   { timestamps: true }
 );
 
-export const LocationModel = mongoose.model<ILocation>(
-  "Location",
-  LocationSchema
-);
+export const LocationModel = mongoose.model<ILocation>("Location", LocationSchema);
 
 export const CreateLocationSchema = z.object({
   name: z.string().min(1),

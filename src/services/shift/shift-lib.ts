@@ -37,7 +37,12 @@ export async function getShiftWithCounts(id: string) {
   const shift = await getShiftById(id);
   const confirmedCount = await SignupModel.countDocuments({ shiftId: id, status: "confirmed" });
   const waitlistCount = await SignupModel.countDocuments({ shiftId: id, status: "waitlisted" });
-  return { ...shift.toObject(), confirmedCount, waitlistCount, spotsAvailable: shift.maxVolunteers - confirmedCount };
+  return {
+    ...shift.toObject(),
+    confirmedCount,
+    waitlistCount,
+    spotsAvailable: shift.maxVolunteers - confirmedCount,
+  };
 }
 
 export async function createShift(data: CreateShiftInput) {
@@ -56,7 +61,11 @@ export async function createShift(data: CreateShiftInput) {
     const event = await EventModel.findById(data.eventId);
     if (!event) throw new APIError(404, "EventNotFound", "Event not found");
     if (data.startTime < event.startDate || data.startTime > event.endDate) {
-      throw new APIError(400, "OutsideEventWindow", "Shift startTime falls outside the event's date range");
+      throw new APIError(
+        400,
+        "OutsideEventWindow",
+        "Shift startTime falls outside the event's date range"
+      );
     }
   }
 
@@ -75,7 +84,11 @@ export async function updateShift(id: string, data: UpdateShiftInput) {
     const location = await LocationModel.findById(locationId);
     if (!location) throw new APIError(404, "LocationNotFound", "Location not found");
     if (location.capacity && maxVol > location.capacity) {
-      throw new APIError(400, "ExceedsLocationCapacity", `maxVolunteers exceeds location capacity (${location.capacity})`);
+      throw new APIError(
+        400,
+        "ExceedsLocationCapacity",
+        `maxVolunteers exceeds location capacity (${location.capacity})`
+      );
     }
   }
 

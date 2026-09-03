@@ -92,7 +92,10 @@ const VolunteerResponse = registry.register(
       lastName: z.string().openapi({ example: "Doe" }),
       email: z.string().openapi({ example: "jane@example.com" }),
       phone: z.string().optional().openapi({ example: "555-1234" }),
-      skills: z.array(z.enum(SKILLS)).optional().openapi({ example: ["first-aid"] }),
+      skills: z
+        .array(z.enum(SKILLS))
+        .optional()
+        .openapi({ example: ["first-aid"] }),
       emergencyContact: z
         .object({
           name: z.string().openapi({ example: "John Doe" }),
@@ -151,7 +154,10 @@ const ShiftTemplateResponse = registry.register(
       recurrenceRule: z.object({
         frequency: z.enum(["daily", "weekly", "monthly"]),
         interval: z.number().openapi({ example: 1 }),
-        daysOfWeek: z.array(z.number()).optional().openapi({ example: [1, 3] }),
+        daysOfWeek: z
+          .array(z.number())
+          .optional()
+          .openapi({ example: [1, 3] }),
         endDate: z.string().optional(),
         occurrences: z.number().optional().openapi({ example: 8 }),
       }),
@@ -192,7 +198,10 @@ registry.registerPath({
       description: "List of locations",
       content: {
         "application/json": {
-          schema: z.object({ locations: z.array(LocationResponse), pagination: PaginationMetaSchema }),
+          schema: z.object({
+            locations: z.array(LocationResponse),
+            pagination: PaginationMetaSchema,
+          }),
         },
       },
     },
@@ -289,7 +298,11 @@ registry.registerPath({
   responses: {
     200: {
       description: "List of events",
-      content: { "application/json": { schema: z.object({ events: z.array(EventResponse), pagination: PaginationMetaSchema }) } },
+      content: {
+        "application/json": {
+          schema: z.object({ events: z.array(EventResponse), pagination: PaginationMetaSchema }),
+        },
+      },
     },
   },
 });
@@ -393,7 +406,14 @@ registry.registerPath({
   responses: {
     200: {
       description: "List of volunteers",
-      content: { "application/json": { schema: z.object({ volunteers: z.array(VolunteerResponse), pagination: PaginationMetaSchema }) } },
+      content: {
+        "application/json": {
+          schema: z.object({
+            volunteers: z.array(VolunteerResponse),
+            pagination: PaginationMetaSchema,
+          }),
+        },
+      },
     },
   },
 });
@@ -434,7 +454,10 @@ registry.registerPath({
   summary: "Get a volunteer by ID",
   request: { params: z.object({ id: ObjectId }) },
   responses: {
-    200: { description: "Volunteer", content: { "application/json": { schema: VolunteerResponse } } },
+    200: {
+      description: "Volunteer",
+      content: { "application/json": { schema: VolunteerResponse } },
+    },
     404: COMMON_ERRORS[404],
   },
 });
@@ -534,7 +557,11 @@ registry.registerPath({
   responses: {
     200: {
       description: "List of shifts",
-      content: { "application/json": { schema: z.object({ shifts: z.array(ShiftResponse), pagination: PaginationMetaSchema }) } },
+      content: {
+        "application/json": {
+          schema: z.object({ shifts: z.array(ShiftResponse), pagination: PaginationMetaSchema }),
+        },
+      },
     },
   },
 });
@@ -577,7 +604,10 @@ registry.registerPath({
   summary: "Get a shift by ID (includes confirmed count, waitlist count, spots available)",
   request: { params: z.object({ id: ObjectId }) },
   responses: {
-    200: { description: "Shift with counts", content: { "application/json": { schema: ShiftWithCountsResponse } } },
+    200: {
+      description: "Shift with counts",
+      content: { "application/json": { schema: ShiftWithCountsResponse } },
+    },
     404: COMMON_ERRORS[404],
   },
 });
@@ -662,7 +692,12 @@ registry.registerPath({
     200: {
       description: "List of templates",
       content: {
-        "application/json": { schema: z.object({ templates: z.array(ShiftTemplateResponse), pagination: PaginationMetaSchema }) },
+        "application/json": {
+          schema: z.object({
+            templates: z.array(ShiftTemplateResponse),
+            pagination: PaginationMetaSchema,
+          }),
+        },
       },
     },
   },
@@ -690,9 +725,15 @@ registry.registerPath({
             recurrenceRule: z.object({
               frequency: z.enum(["daily", "weekly", "monthly"]),
               interval: z.number().optional().openapi({ example: 1 }),
-              daysOfWeek: z.array(z.number()).optional().openapi({ example: [1, 3], description: "0=Sun, 6=Sat" }),
+              daysOfWeek: z
+                .array(z.number())
+                .optional()
+                .openapi({ example: [1, 3], description: "0=Sun, 6=Sat" }),
               endDate: z.string().optional(),
-              occurrences: z.number().optional().openapi({ example: 8, description: "endDate or occurrences required" }),
+              occurrences: z
+                .number()
+                .optional()
+                .openapi({ example: 8, description: "endDate or occurrences required" }),
             }),
             createdBy: z.string().openapi({ example: "admin" }),
           }),
@@ -701,7 +742,10 @@ registry.registerPath({
     },
   },
   responses: {
-    201: { description: "Created", content: { "application/json": { schema: ShiftTemplateResponse } } },
+    201: {
+      description: "Created",
+      content: { "application/json": { schema: ShiftTemplateResponse } },
+    },
     ...COMMON_ERRORS,
   },
 });
@@ -713,7 +757,10 @@ registry.registerPath({
   summary: "Get a shift template by ID",
   request: { params: z.object({ id: ObjectId }) },
   responses: {
-    200: { description: "Template", content: { "application/json": { schema: ShiftTemplateResponse } } },
+    200: {
+      description: "Template",
+      content: { "application/json": { schema: ShiftTemplateResponse } },
+    },
     404: COMMON_ERRORS[404],
   },
 });
@@ -742,7 +789,10 @@ registry.registerPath({
     },
   },
   responses: {
-    200: { description: "Updated", content: { "application/json": { schema: ShiftTemplateResponse } } },
+    200: {
+      description: "Updated",
+      content: { "application/json": { schema: ShiftTemplateResponse } },
+    },
     ...COMMON_ERRORS,
   },
 });
@@ -773,7 +823,11 @@ registry.registerPath({
   responses: {
     200: {
       description: "List of signups",
-      content: { "application/json": { schema: z.object({ signups: z.array(SignupResponse), pagination: PaginationMetaSchema }) } },
+      content: {
+        "application/json": {
+          schema: z.object({ signups: z.array(SignupResponse), pagination: PaginationMetaSchema }),
+        },
+      },
     },
   },
 });
@@ -857,7 +911,10 @@ registry.registerPath({
   summary: "Check out a volunteer (sets checkedOutAt, marks completed) — requires prior checkin",
   request: { params: z.object({ id: ObjectId }) },
   responses: {
-    200: { description: "Checked out", content: { "application/json": { schema: SignupResponse } } },
+    200: {
+      description: "Checked out",
+      content: { "application/json": { schema: SignupResponse } },
+    },
     400: COMMON_ERRORS[400],
     404: COMMON_ERRORS[404],
   },
@@ -868,7 +925,8 @@ registry.registerPath({
   path: "/signups/{id}/status",
   tags: ["Signups"],
   summary: "Update signup status",
-  description: "Valid transitions: confirmed→cancelled/no-show/completed, waitlisted→confirmed/cancelled",
+  description:
+    "Valid transitions: confirmed→cancelled/no-show/completed, waitlisted→confirmed/cancelled",
   request: {
     params: z.object({ id: ObjectId }),
     body: {

@@ -11,7 +11,10 @@ router.get(
   asyncHandler(async (req, res) => {
     const { status, eventId, locationId, from, to } = req.query as Record<string, string>;
     const pagination = PaginationSchema.parse(req.query);
-    const { data: shifts, pagination: meta } = await lib.getAllShifts({ status, eventId, locationId, from, to }, pagination);
+    const { data: shifts, pagination: meta } = await lib.getAllShifts(
+      { status, eventId, locationId, from, to },
+      pagination
+    );
     res.json({ shifts, pagination: meta });
   })
 );
@@ -20,7 +23,10 @@ router.get(
   "/:id/signups",
   asyncHandler(async (req, res) => {
     const pagination = PaginationSchema.parse(req.query);
-    const { data: signups, pagination: meta } = await lib.getShiftSignups(req.params.id, pagination);
+    const { data: signups, pagination: meta } = await lib.getShiftSignups(
+      req.params.id,
+      pagination
+    );
     res.json({ signups, pagination: meta });
   })
 );

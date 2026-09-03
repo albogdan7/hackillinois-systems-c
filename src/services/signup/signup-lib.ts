@@ -1,9 +1,8 @@
-import mongoose from "mongoose";
 import { APIError } from "../../common/errors";
 import { paginate, PaginationInput } from "../../common/paginate";
 import { SignupModel, SignupStatus, CreateSignupInput } from "./signup-schemas";
 import { VolunteerModel } from "../volunteer/volunteer-schemas";
-import { ShiftModel, IShift } from "../shift/shift-schemas";
+import { ShiftModel } from "../shift/shift-schemas";
 
 const VALID_TRANSITIONS: Record<SignupStatus, SignupStatus[]> = {
   confirmed: ["cancelled", "no-show", "completed"],
@@ -53,7 +52,11 @@ export async function createSignup(data: CreateSignupInput) {
     const volunteerSkills = volunteer.skills ?? [];
     const missing = shift.requiredSkills.filter((s) => !volunteerSkills.includes(s));
     if (missing.length > 0) {
-      throw new APIError(400, "InsufficientSkills", `Volunteer is missing required skills: ${missing.join(", ")}`);
+      throw new APIError(
+        400,
+        "InsufficientSkills",
+        `Volunteer is missing required skills: ${missing.join(", ")}`
+      );
     }
   }
 
@@ -70,7 +73,11 @@ export async function createSignup(data: CreateSignupInput) {
       endTime: { $gt: shift.startTime },
     });
     if (overlapping) {
-      throw new APIError(409, "ShiftOverlap", "Volunteer already has a confirmed shift that overlaps with this one");
+      throw new APIError(
+        409,
+        "ShiftOverlap",
+        "Volunteer already has a confirmed shift that overlaps with this one"
+      );
     }
   }
 

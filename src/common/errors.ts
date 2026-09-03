@@ -12,9 +12,7 @@ export class APIError extends Error {
 }
 
 export const asyncHandler =
-  (
-    fn: (req: Request, res: Response, next: NextFunction) => Promise<void>
-  ): RequestHandler =>
+  (fn: (req: Request, res: Response, next: NextFunction) => Promise<void>): RequestHandler =>
   (req, res, next) => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };
@@ -23,7 +21,6 @@ export const errorHandler = (
   err: Error,
   _req: Request,
   res: Response,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _next: NextFunction
 ): void => {
   if (err instanceof APIError) {
@@ -31,7 +28,5 @@ export const errorHandler = (
     return;
   }
   console.error(err);
-  res
-    .status(500)
-    .json({ error: "InternalError", message: "An unexpected error occurred" });
+  res.status(500).json({ error: "InternalError", message: "An unexpected error occurred" });
 };

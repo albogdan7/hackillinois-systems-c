@@ -31,10 +31,7 @@ export async function paginate<T>(
     query = query.populate(populateField) as typeof query;
   }
 
-  const [data, total] = await Promise.all([
-    query,
-    model.countDocuments(filter),
-  ]);
+  const [data, total] = await Promise.all([query, model.countDocuments(filter)]);
 
   const totalPages = Math.max(Math.ceil(total / limit), 1);
 

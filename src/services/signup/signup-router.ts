@@ -1,11 +1,7 @@
 import { Router } from "express";
 import { asyncHandler, APIError } from "../../common/errors";
 import { PaginationSchema } from "../../common/paginate";
-import {
-  CreateSignupSchema,
-  CancelSignupSchema,
-  UpdateSignupStatusSchema,
-} from "./signup-schemas";
+import { CreateSignupSchema, CancelSignupSchema, UpdateSignupStatusSchema } from "./signup-schemas";
 import * as lib from "./signup-lib";
 
 const router = Router();
@@ -15,7 +11,10 @@ router.get(
   asyncHandler(async (req, res) => {
     const { volunteerId, shiftId, status } = req.query as Record<string, string>;
     const pagination = PaginationSchema.parse(req.query);
-    const { data: signups, pagination: meta } = await lib.getAllSignups({ volunteerId, shiftId, status }, pagination);
+    const { data: signups, pagination: meta } = await lib.getAllSignups(
+      { volunteerId, shiftId, status },
+      pagination
+    );
     res.json({ signups, pagination: meta });
   })
 );

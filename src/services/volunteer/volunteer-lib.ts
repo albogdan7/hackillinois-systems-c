@@ -1,10 +1,6 @@
 import { APIError } from "../../common/errors";
 import { paginate, PaginationInput } from "../../common/paginate";
-import {
-  VolunteerModel,
-  CreateVolunteerInput,
-  UpdateVolunteerInput,
-} from "./volunteer-schemas";
+import { VolunteerModel, CreateVolunteerInput, UpdateVolunteerInput } from "./volunteer-schemas";
 import { SignupModel } from "../signup/signup-schemas";
 
 export async function getAllVolunteers(pagination: PaginationInput) {
@@ -22,7 +18,11 @@ export async function getVolunteerById(id: string) {
 export async function createVolunteer(data: CreateVolunteerInput) {
   const existing = await VolunteerModel.findOne({ email: data.email.toLowerCase() });
   if (existing) {
-    throw new APIError(409, "EmailConflict", `A volunteer with email "${data.email}" already exists`);
+    throw new APIError(
+      409,
+      "EmailConflict",
+      `A volunteer with email "${data.email}" already exists`
+    );
   }
   return VolunteerModel.create(data);
 }
@@ -34,7 +34,11 @@ export async function updateVolunteer(id: string, data: UpdateVolunteerInput) {
       _id: { $ne: id },
     });
     if (existing) {
-      throw new APIError(409, "EmailConflict", `A volunteer with email "${data.email}" already exists`);
+      throw new APIError(
+        409,
+        "EmailConflict",
+        `A volunteer with email "${data.email}" already exists`
+      );
     }
   }
   const volunteer = await VolunteerModel.findByIdAndUpdate(id, data, {

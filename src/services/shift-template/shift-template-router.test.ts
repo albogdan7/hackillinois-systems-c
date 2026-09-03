@@ -1,4 +1,4 @@
-import { get, post, put, del } from "../../common/testTools";
+import { get, post, del } from "../../common/testTools";
 import { ShiftModel } from "../shift/shift-schemas";
 
 async function makeLocation() {
