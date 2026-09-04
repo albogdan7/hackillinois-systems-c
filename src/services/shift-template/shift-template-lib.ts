@@ -121,9 +121,7 @@ function generateOccurrenceDates(startDate: Date, rule: IRecurrenceRule): Date[]
 }
 
 async function generateShifts(template: IShiftTemplate & { _id: mongoose.Types.ObjectId }) {
-  const [hoursStr, minutesStr] = template.startTimeOfDay.split(":");
-  const hours = parseInt(hoursStr, 10);
-  const minutes = parseInt(minutesStr, 10);
+  const [hours, minutes] = template.startTimeOfDay.split(":").map(Number);
 
   const dates = generateOccurrenceDates(template.startDate, template.recurrenceRule);
 

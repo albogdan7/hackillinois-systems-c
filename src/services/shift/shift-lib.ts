@@ -22,9 +22,10 @@ export async function getAllShifts(
   if (filters.locationId) query.locationId = filters.locationId;
   if (filters.skill) query.requiredSkills = filters.skill;
   if (filters.from || filters.to) {
-    query.startTime = {};
-    if (filters.from) (query.startTime as Record<string, unknown>).$gte = new Date(filters.from);
-    if (filters.to) (query.startTime as Record<string, unknown>).$lte = new Date(filters.to);
+    query.startTime = {
+      ...(filters.from && { $gte: new Date(filters.from) }),
+      ...(filters.to && { $lte: new Date(filters.to) }),
+    };
   }
   return paginate(ShiftModel, query, { startTime: 1 }, pagination);
 }
@@ -126,7 +127,7 @@ export async function getShiftSignups(id: string, pagination: PaginationInput) {
 
 export async function markNoShows(id: string) {
   const shift = await getShiftById(id);
-  if (shift.status !== "cancelled" && new Date() < shift.endTime) {
+  if (new Date() < shift.endTime) {
     throw new APIError(400, "ShiftNotEnded", "Cannot mark no-shows before the shift has ended");
   }
   const result = await SignupModel.updateMany(

@@ -18,7 +18,7 @@ router.get(
 router.get(
   "/leaderboard",
   asyncHandler(async (req, res) => {
-    const limit = Math.min(parseInt((req.query.limit as string) ?? "10", 10) || 10, 100);
+    const limit = Math.min(parseInt((req.query.limit as string) ?? "10", 10), 100);
     const leaderboard = await lib.getLeaderboard(limit);
     res.json({ leaderboard });
   })
