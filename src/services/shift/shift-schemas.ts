@@ -41,6 +41,13 @@ const ShiftSchema = new mongoose.Schema<IShift>(
   { timestamps: true }
 );
 
+// eventId: getEventShifts, getEventSummary aggregation
+ShiftSchema.index({ eventId: 1 });
+// status + startTime: paginated listing with status filter and time-range queries
+ShiftSchema.index({ status: 1, startTime: 1 });
+// requiredSkills: skill filter (multikey index — one entry per element)
+ShiftSchema.index({ requiredSkills: 1 });
+
 export const ShiftModel = mongoose.model<IShift>("Shift", ShiftSchema);
 
 export const CreateShiftSchema = z

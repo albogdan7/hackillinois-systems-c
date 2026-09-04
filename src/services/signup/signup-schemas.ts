@@ -39,6 +39,10 @@ const SignupSchema = new mongoose.Schema<ISignup>(
 );
 
 SignupSchema.index({ volunteerId: 1, shiftId: 1 }, { unique: true });
+// shiftId: counts, signups list, cascade cancellation, no-show marking
+SignupSchema.index({ shiftId: 1 });
+// volunteerId: volunteer signup history, overlap detection on every new signup
+SignupSchema.index({ volunteerId: 1 });
 
 export const SignupModel = mongoose.model<ISignup>("Signup", SignupSchema);
 

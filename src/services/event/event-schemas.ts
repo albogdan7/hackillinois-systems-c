@@ -30,6 +30,9 @@ const EventSchema = new mongoose.Schema<IEvent>(
   { timestamps: true }
 );
 
+// status: getAllEvents status filter
+EventSchema.index({ status: 1 });
+
 export const EventModel = mongoose.model<IEvent>("Event", EventSchema);
 
 export const CreateEventSchema = z
