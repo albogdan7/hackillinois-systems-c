@@ -15,42 +15,6 @@ erDiagram
     Event ||--o{ Shift : "contains"
     Shift ||--o{ ShiftTemplate : "is blueprint for"
     ShiftTemplate ||--o{ Shift : "generates"
-
-    Volunteer {
-        string firstName
-        string lastName
-        string email
-        string phone
-        string[] skills
-    }
-    Location {
-        string name
-        string address
-        number capacity
-    }
-    Event {
-        string name
-        date startDate
-        date endDate
-        string status
-    }
-    Shift {
-        string title
-        date startTime
-        date endTime
-        number maxVolunteers
-        string[] requiredSkills
-        string status
-    }
-    ShiftTemplate {
-        ObjectId shiftId FK
-        object recurrenceRule
-    }
-    Signup {
-        string status
-        date checkedInAt
-        date checkedOutAt
-    }
 ```
 
 ## Project Structure
