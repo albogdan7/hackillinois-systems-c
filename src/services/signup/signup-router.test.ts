@@ -3,7 +3,7 @@ import { SIGNUP_STATUS } from "./signup-schemas";
 import { SHIFT_STATUS } from "../shift/shift-schemas";
 
 async function makeLocation() {
-  const res = await post("/locations").send({ name: "Signup Hall", capacity: 50 });
+  const res = await post("/locations").send({ name: "Signup Hall", capacity: 50, createdBy: "admin" });
   return res.body._id as string;
 }
 
@@ -13,6 +13,7 @@ async function makeVolunteer(email = "vol@example.com", skills: string[] = []) {
     lastName: "Volunteer",
     email,
     skills,
+    createdBy: "admin",
   });
   return res.body._id as string;
 }
@@ -37,7 +38,7 @@ describe("POST /signups — basic", () => {
     const volId = await makeVolunteer();
     const shiftId = await makeShift(locId);
 
-    const res = await post("/signups").send({ volunteerId: volId, shiftId });
+    const res = await post("/signups").send({ volunteerId: volId, shiftId, createdBy: "admin" });
     expect(res.status).toBe(201);
     expect(res.body.status).toBe(SIGNUP_STATUS.CONFIRMED);
   });
@@ -49,8 +50,8 @@ describe("POST /signups — basic", () => {
     const vol1 = await makeVolunteer("v1@example.com");
     const vol2 = await makeVolunteer("v2@example.com");
 
-    await post("/signups").send({ volunteerId: vol1, shiftId });
-    const res = await post("/signups").send({ volunteerId: vol2, shiftId });
+    await post("/signups").send({ volunteerId: vol1, shiftId, createdBy: "admin" });
+    const res = await post("/signups").send({ volunteerId: vol2, shiftId, createdBy: "admin" });
     expect(res.status).toBe(201);
     expect(res.body.status).toBe(SIGNUP_STATUS.WAITLISTED);
   });
@@ -60,8 +61,8 @@ describe("POST /signups — basic", () => {
     const volId = await makeVolunteer();
     const shiftId = await makeShift(locId);
 
-    await post("/signups").send({ volunteerId: volId, shiftId });
-    const res = await post("/signups").send({ volunteerId: volId, shiftId });
+    await post("/signups").send({ volunteerId: volId, shiftId, createdBy: "admin" });
+    const res = await post("/signups").send({ volunteerId: volId, shiftId, createdBy: "admin" });
     expect(res.status).toBe(409);
     expect(res.body.error).toBe("AlreadySignedUp");
   });
@@ -71,7 +72,7 @@ describe("POST /signups — basic", () => {
     const volId = await makeVolunteer();
     const shiftId = await makeShift(locId, { status: SHIFT_STATUS.DRAFT });
 
-    const res = await post("/signups").send({ volunteerId: volId, shiftId });
+    const res = await post("/signups").send({ volunteerId: volId, shiftId, createdBy: "admin" });
     expect(res.status).toBe(400);
     expect(res.body.error).toBe("ShiftNotAvailable");
   });
@@ -82,6 +83,7 @@ describe("POST /signups — basic", () => {
     const res = await post("/signups").send({
       volunteerId: "000000000000000000000000",
       shiftId,
+      createdBy: "admin",
     });
     expect(res.status).toBe(404);
     expect(res.body.error).toBe("VolunteerNotFound");
@@ -92,6 +94,7 @@ describe("POST /signups — basic", () => {
     const res = await post("/signups").send({
       volunteerId: volId,
       shiftId: "000000000000000000000000",
+      createdBy: "admin",
     });
     expect(res.status).toBe(404);
     expect(res.body.error).toBe("ShiftNotFound");
@@ -104,7 +107,7 @@ describe("POST /signups — skill matching", () => {
     const volId = await makeVolunteer("skilled@example.com", ["first-aid", "driving"]);
     const shiftId = await makeShift(locId, { requiredSkills: ["first-aid"] });
 
-    const res = await post("/signups").send({ volunteerId: volId, shiftId });
+    const res = await post("/signups").send({ volunteerId: volId, shiftId, createdBy: "admin" });
     expect(res.status).toBe(201);
   });
 
@@ -113,7 +116,7 @@ describe("POST /signups — skill matching", () => {
     const volId = await makeVolunteer("unskilled@example.com", ["driving"]);
     const shiftId = await makeShift(locId, { requiredSkills: ["first-aid"] });
 
-    const res = await post("/signups").send({ volunteerId: volId, shiftId });
+    const res = await post("/signups").send({ volunteerId: volId, shiftId, createdBy: "admin" });
     expect(res.status).toBe(400);
     expect(res.body.error).toBe("InsufficientSkills");
   });
@@ -134,8 +137,8 @@ describe("POST /signups — overlap detection", () => {
       endTime: "2026-10-10T14:00:00Z",
     });
 
-    await post("/signups").send({ volunteerId: volId, shiftId: shift1 });
-    const res = await post("/signups").send({ volunteerId: volId, shiftId: shift2 });
+    await post("/signups").send({ volunteerId: volId, shiftId: shift1, createdBy: "admin" });
+    const res = await post("/signups").send({ volunteerId: volId, shiftId: shift2, createdBy: "admin" });
     expect(res.status).toBe(409);
     expect(res.body.error).toBe("ShiftOverlap");
   });
@@ -154,8 +157,8 @@ describe("POST /signups — overlap detection", () => {
       endTime: "2026-10-10T15:00:00Z",
     });
 
-    await post("/signups").send({ volunteerId: volId, shiftId: shift1 });
-    const res = await post("/signups").send({ volunteerId: volId, shiftId: shift2 });
+    await post("/signups").send({ volunteerId: volId, shiftId: shift1, createdBy: "admin" });
+    const res = await post("/signups").send({ volunteerId: volId, shiftId: shift2, createdBy: "admin" });
     expect(res.status).toBe(201);
   });
 });
@@ -166,7 +169,7 @@ describe("PUT /signups/:id/cancel", () => {
     const volId = await makeVolunteer();
     const shiftId = await makeShift(locId);
 
-    const signup = await post("/signups").send({ volunteerId: volId, shiftId });
+    const signup = await post("/signups").send({ volunteerId: volId, shiftId, createdBy: "admin" });
     const res = await put(`/signups/${signup.body._id}/cancel`);
     expect(res.status).toBe(200);
     expect(res.body.status).toBe(SIGNUP_STATUS.CANCELLED);
@@ -178,7 +181,7 @@ describe("PUT /signups/:id/cancel", () => {
     const volId = await makeVolunteer();
     const shiftId = await makeShift(locId);
 
-    const signup = await post("/signups").send({ volunteerId: volId, shiftId });
+    const signup = await post("/signups").send({ volunteerId: volId, shiftId, createdBy: "admin" });
     const res = await put(`/signups/${signup.body._id}/cancel`).send({
       cancellationReason: "Family emergency",
     });
@@ -192,8 +195,8 @@ describe("PUT /signups/:id/cancel", () => {
     const vol1 = await makeVolunteer("v1@example.com");
     const vol2 = await makeVolunteer("v2@example.com");
 
-    const s1 = await post("/signups").send({ volunteerId: vol1, shiftId });
-    const s2 = await post("/signups").send({ volunteerId: vol2, shiftId });
+    const s1 = await post("/signups").send({ volunteerId: vol1, shiftId, createdBy: "admin" });
+    const s2 = await post("/signups").send({ volunteerId: vol2, shiftId, createdBy: "admin" });
 
     expect(s1.body.status).toBe(SIGNUP_STATUS.CONFIRMED);
     expect(s2.body.status).toBe(SIGNUP_STATUS.WAITLISTED);
@@ -209,7 +212,7 @@ describe("PUT /signups/:id/cancel", () => {
     const volId = await makeVolunteer();
     const shiftId = await makeShift(locId);
 
-    const signup = await post("/signups").send({ volunteerId: volId, shiftId });
+    const signup = await post("/signups").send({ volunteerId: volId, shiftId, createdBy: "admin" });
     await put(`/signups/${signup.body._id}/cancel`);
     const res = await put(`/signups/${signup.body._id}/cancel`);
     expect(res.status).toBe(400);
@@ -223,7 +226,7 @@ describe("PUT /signups/:id/checkin and checkout", () => {
     const volId = await makeVolunteer();
     const shiftId = await makeShift(locId);
 
-    const signup = await post("/signups").send({ volunteerId: volId, shiftId });
+    const signup = await post("/signups").send({ volunteerId: volId, shiftId, createdBy: "admin" });
     const res = await put(`/signups/${signup.body._id}/checkin`);
     expect(res.status).toBe(200);
     expect(res.body.checkedInAt).toBeDefined();
@@ -234,7 +237,7 @@ describe("PUT /signups/:id/checkin and checkout", () => {
     const volId = await makeVolunteer();
     const shiftId = await makeShift(locId);
 
-    const signup = await post("/signups").send({ volunteerId: volId, shiftId });
+    const signup = await post("/signups").send({ volunteerId: volId, shiftId, createdBy: "admin" });
     const res = await put(`/signups/${signup.body._id}/checkout`);
     expect(res.status).toBe(400);
     expect(res.body.error).toBe("NotCheckedIn");
@@ -245,7 +248,7 @@ describe("PUT /signups/:id/checkin and checkout", () => {
     const volId = await makeVolunteer();
     const shiftId = await makeShift(locId);
 
-    const signup = await post("/signups").send({ volunteerId: volId, shiftId });
+    const signup = await post("/signups").send({ volunteerId: volId, shiftId, createdBy: "admin" });
     await put(`/signups/${signup.body._id}/checkin`);
     const res = await put(`/signups/${signup.body._id}/checkout`);
     expect(res.status).toBe(200);
@@ -262,8 +265,8 @@ describe("Shift cancellation cascade", () => {
     const vol1 = await makeVolunteer("c1@example.com");
     const vol2 = await makeVolunteer("c2@example.com");
 
-    const s1 = await post("/signups").send({ volunteerId: vol1, shiftId });
-    const s2 = await post("/signups").send({ volunteerId: vol2, shiftId });
+    const s1 = await post("/signups").send({ volunteerId: vol1, shiftId, createdBy: "admin" });
+    const s2 = await post("/signups").send({ volunteerId: vol2, shiftId, createdBy: "admin" });
 
     await put(`/shifts/${shiftId}/cancel`);
 
@@ -280,7 +283,7 @@ describe("GET /volunteers/:id/hours", () => {
     const volId = await makeVolunteer();
     const shiftId = await makeShift(locId);
 
-    const signup = await post("/signups").send({ volunteerId: volId, shiftId });
+    const signup = await post("/signups").send({ volunteerId: volId, shiftId, createdBy: "admin" });
     await put(`/signups/${signup.body._id}/checkin`);
     await put(`/signups/${signup.body._id}/checkout`);
 

@@ -10,8 +10,8 @@ describe("GET /locations", () => {
   });
 
   it("returns all locations with pagination metadata", async () => {
-    await post("/locations").send({ name: "Main Hall" });
-    await post("/locations").send({ name: "Room 101" });
+    await post("/locations").send({ name: "Main Hall", createdBy: "admin" });
+    await post("/locations").send({ name: "Room 101", createdBy: "admin" });
     const res = await get("/locations");
     expect(res.status).toBe(200);
     expect(res.body.locations).toHaveLength(2);
@@ -21,9 +21,9 @@ describe("GET /locations", () => {
   });
 
   it("paginates results", async () => {
-    await post("/locations").send({ name: "Room A" });
-    await post("/locations").send({ name: "Room B" });
-    await post("/locations").send({ name: "Room C" });
+    await post("/locations").send({ name: "Room A", createdBy: "admin" });
+    await post("/locations").send({ name: "Room B", createdBy: "admin" });
+    await post("/locations").send({ name: "Room C", createdBy: "admin" });
 
     const page1 = await get("/locations?page=1&limit=2");
     expect(page1.body.locations).toHaveLength(2);
@@ -42,9 +42,9 @@ describe("POST /locations", () => {
   it("creates a location", async () => {
     const res = await post("/locations").send({
       name: "Main Hall",
-      description: "Primary event space",
-      building: "Engineering Hall",
+      address: "1 Engineering Dr",
       capacity: 200,
+      createdBy: "admin",
     });
     expect(res.status).toBe(201);
     expect(res.body.name).toBe("Main Hall");
@@ -52,34 +52,39 @@ describe("POST /locations", () => {
   });
 
   it("creates a location without optional fields", async () => {
-    const res = await post("/locations").send({ name: "Outdoor Stage" });
+    const res = await post("/locations").send({ name: "Outdoor Stage", createdBy: "admin" });
     expect(res.status).toBe(201);
-    expect(res.body.building).toBeUndefined();
+    expect(res.body.address).toBeUndefined();
     expect(res.body.capacity).toBeUndefined();
   });
 
   it("rejects missing name", async () => {
-    const res = await post("/locations").send({ capacity: 50 });
+    const res = await post("/locations").send({ capacity: 50, createdBy: "admin" });
     expect(res.status).toBe(400);
     expect(res.body.error).toBe("BadRequest");
   });
 
+  it("rejects missing createdBy", async () => {
+    const res = await post("/locations").send({ name: "No Creator" });
+    expect(res.status).toBe(400);
+  });
+
   it("rejects duplicate name", async () => {
-    await post("/locations").send({ name: "Main Hall" });
-    const res = await post("/locations").send({ name: "Main Hall" });
+    await post("/locations").send({ name: "Main Hall", createdBy: "admin" });
+    const res = await post("/locations").send({ name: "Main Hall", createdBy: "admin" });
     expect(res.status).toBe(409);
     expect(res.body.error).toBe("LocationNameConflict");
   });
 
   it("rejects capacity less than 1", async () => {
-    const res = await post("/locations").send({ name: "Lab", capacity: 0 });
+    const res = await post("/locations").send({ name: "Lab", capacity: 0, createdBy: "admin" });
     expect(res.status).toBe(400);
   });
 });
 
 describe("GET /locations/:id", () => {
   it("returns a location by id", async () => {
-    const created = await post("/locations").send({ name: "Library" });
+    const created = await post("/locations").send({ name: "Library", createdBy: "admin" });
     const res = await get(`/locations/${created.body._id}`);
     expect(res.status).toBe(200);
     expect(res.body.name).toBe("Library");
@@ -94,10 +99,11 @@ describe("GET /locations/:id", () => {
 
 describe("PUT /locations/:id", () => {
   it("updates a location", async () => {
-    const created = await post("/locations").send({ name: "Old Name" });
+    const created = await post("/locations").send({ name: "Old Name", createdBy: "admin" });
     const res = await put(`/locations/${created.body._id}`).send({
       name: "New Name",
       capacity: 50,
+      updatedBy: "admin",
     });
     expect(res.status).toBe(200);
     expect(res.body.name).toBe("New Name");
@@ -105,23 +111,21 @@ describe("PUT /locations/:id", () => {
   });
 
   it("returns 404 for unknown id", async () => {
-    const res = await put("/locations/000000000000000000000000").send({
-      name: "X",
-    });
+    const res = await put("/locations/000000000000000000000000").send({ name: "X", updatedBy: "admin" });
     expect(res.status).toBe(404);
   });
 
   it("rejects name conflict with another location", async () => {
-    await post("/locations").send({ name: "Room A" });
-    const b = await post("/locations").send({ name: "Room B" });
-    const res = await put(`/locations/${b.body._id}`).send({ name: "Room A" });
+    await post("/locations").send({ name: "Room A", createdBy: "admin" });
+    const b = await post("/locations").send({ name: "Room B", createdBy: "admin" });
+    const res = await put(`/locations/${b.body._id}`).send({ name: "Room A", updatedBy: "admin" });
     expect(res.status).toBe(409);
   });
 });
 
 describe("DELETE /locations/:id", () => {
   it("deletes a location", async () => {
-    const created = await post("/locations").send({ name: "Temp Room" });
+    const created = await post("/locations").send({ name: "Temp Room", createdBy: "admin" });
     const res = await del(`/locations/${created.body._id}`);
     expect(res.status).toBe(204);
     const check = await get(`/locations/${created.body._id}`);

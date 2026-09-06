@@ -15,6 +15,8 @@ export interface IVolunteer {
   phone?: string;
   skills?: string[];
   emergencyContact?: IEmergencyContact;
+  createdBy: string;
+  updatedBy?: string;
 }
 
 const VolunteerSchema = new mongoose.Schema<IVolunteer>(
@@ -29,6 +31,8 @@ const VolunteerSchema = new mongoose.Schema<IVolunteer>(
       phone: { type: String },
       relationship: { type: String },
     },
+    createdBy: { type: String, required: true },
+    updatedBy: { type: String },
   },
   { timestamps: true }
 );
@@ -48,9 +52,18 @@ export const CreateVolunteerSchema = z.object({
   phone: z.string().optional(),
   skills: z.array(SkillEnum).optional(),
   emergencyContact: EmergencyContactSchema.optional(),
+  createdBy: z.string().min(1),
 });
 
-export const UpdateVolunteerSchema = CreateVolunteerSchema.partial();
+export const UpdateVolunteerSchema = z.object({
+  firstName: z.string().min(1).optional(),
+  lastName: z.string().min(1).optional(),
+  email: z.string().email().optional(),
+  phone: z.string().optional(),
+  skills: z.array(SkillEnum).optional(),
+  emergencyContact: EmergencyContactSchema.optional(),
+  updatedBy: z.string().min(1).optional(),
+});
 
 export type CreateVolunteerInput = z.infer<typeof CreateVolunteerSchema>;
 export type UpdateVolunteerInput = z.infer<typeof UpdateVolunteerSchema>;

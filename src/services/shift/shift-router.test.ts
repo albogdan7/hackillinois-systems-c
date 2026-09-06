@@ -3,7 +3,7 @@ import { SHIFT_STATUS } from "./shift-schemas";
 import { SIGNUP_STATUS } from "../signup/signup-schemas";
 
 async function makeLocation() {
-  const res = await post("/locations").send({ name: "Test Hall", capacity: 50 });
+  const res = await post("/locations").send({ name: "Test Hall", capacity: 50, createdBy: "admin" });
   return res.body._id as string;
 }
 
@@ -155,15 +155,17 @@ describe("PUT /shifts/:id/mark-noshows", () => {
       firstName: "A",
       lastName: "B",
       email: "ns1@example.com",
+      createdBy: "admin",
     });
     const vol2 = await post("/volunteers").send({
       firstName: "C",
       lastName: "D",
       email: "ns2@example.com",
+      createdBy: "admin",
     });
 
-    const s1 = await post("/signups").send({ volunteerId: vol1.body._id, shiftId });
-    const s2 = await post("/signups").send({ volunteerId: vol2.body._id, shiftId });
+    const s1 = await post("/signups").send({ volunteerId: vol1.body._id, shiftId, createdBy: "admin" });
+    const s2 = await post("/signups").send({ volunteerId: vol2.body._id, shiftId, createdBy: "admin" });
 
     await put(`/signups/${s1.body._id}/checkin`);
 

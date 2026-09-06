@@ -4,6 +4,7 @@ const BASE_VOLUNTEER = {
   firstName: "Jane",
   lastName: "Doe",
   email: "jane@example.com",
+  createdBy: "admin",
 };
 
 describe("GET /volunteers", () => {
@@ -106,7 +107,7 @@ describe("GET /volunteers/leaderboard", () => {
   });
 
   it("ranks volunteers by total hours descending", async () => {
-    const loc = await post("/locations").send({ name: "LB Hall", capacity: 10 });
+    const loc = await post("/locations").send({ name: "LB Hall", capacity: 10, createdBy: "admin" });
     const shift1 = await post("/shifts").send({
       title: "Morning",
       locationId: loc.body._id,
@@ -130,17 +131,20 @@ describe("GET /volunteers/leaderboard", () => {
       firstName: "Alice",
       lastName: "A",
       email: "alice.lb@example.com",
+      createdBy: "admin",
     });
     const vol2 = await post("/volunteers").send({
       firstName: "Bob",
       lastName: "B",
       email: "bob.lb@example.com",
+      createdBy: "admin",
     });
 
     // vol1 signs up for both shifts and completes them (3h + 4h = 7h)
     const s1 = await post("/signups").send({
       volunteerId: vol1.body._id,
       shiftId: shift1.body._id,
+      createdBy: "admin",
     });
     await put(`/signups/${s1.body._id}/checkin`);
     await put(`/signups/${s1.body._id}/checkout`);
@@ -148,6 +152,7 @@ describe("GET /volunteers/leaderboard", () => {
     const s2 = await post("/signups").send({
       volunteerId: vol1.body._id,
       shiftId: shift2.body._id,
+      createdBy: "admin",
     });
     await put(`/signups/${s2.body._id}/checkin`);
     await put(`/signups/${s2.body._id}/checkout`);
@@ -156,6 +161,7 @@ describe("GET /volunteers/leaderboard", () => {
     const s3 = await post("/signups").send({
       volunteerId: vol2.body._id,
       shiftId: shift1.body._id,
+      createdBy: "admin",
     });
     await put(`/signups/${s3.body._id}/checkin`);
     await put(`/signups/${s3.body._id}/checkout`);
@@ -170,7 +176,7 @@ describe("GET /volunteers/leaderboard", () => {
 
   it("respects the limit query param", async () => {
     // Create 3 volunteers with completed signups
-    const loc = await post("/locations").send({ name: "Limit Hall", capacity: 10 });
+    const loc = await post("/locations").send({ name: "Limit Hall", capacity: 10, createdBy: "admin" });
     const shift = await post("/shifts").send({
       title: "Limit Shift",
       locationId: loc.body._id,
@@ -186,10 +192,12 @@ describe("GET /volunteers/leaderboard", () => {
         firstName: `Vol${i}`,
         lastName: "L",
         email: `vol${i}.limit@example.com`,
+        createdBy: "admin",
       });
       const signup = await post("/signups").send({
         volunteerId: vol.body._id,
         shiftId: shift.body._id,
+        createdBy: "admin",
       });
       await put(`/signups/${signup.body._id}/checkin`);
       await put(`/signups/${signup.body._id}/checkout`);

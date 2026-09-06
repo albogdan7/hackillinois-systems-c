@@ -94,7 +94,7 @@ describe("GET /events/:id/summary", () => {
   });
 
   it("counts confirmed signups and fill rate", async () => {
-    const loc = await post("/locations").send({ name: "Summary Hall" });
+    const loc = await post("/locations").send({ name: "Summary Hall", createdBy: "admin" });
     const event = await post("/events").send(BASE_EVENT);
     const locId = loc.body._id;
     const eventId = event.body._id;
@@ -114,8 +114,9 @@ describe("GET /events/:id/summary", () => {
       firstName: "Sum",
       lastName: "Mary",
       email: "summary@example.com",
+      createdBy: "admin",
     });
-    await post("/signups").send({ volunteerId: vol.body._id, shiftId: shift.body._id });
+    await post("/signups").send({ volunteerId: vol.body._id, shiftId: shift.body._id, createdBy: "admin" });
 
     const res = await get(`/events/${eventId}/summary`);
     expect(res.status).toBe(200);
@@ -133,7 +134,7 @@ describe("GET /events/:id/summary", () => {
 
 describe("GET /events/:id/shifts", () => {
   it("returns shifts belonging to an event", async () => {
-    const loc = await post("/locations").send({ name: "Event Hall" });
+    const loc = await post("/locations").send({ name: "Event Hall", createdBy: "admin" });
     const locId = loc.body._id;
     const event = await post("/events").send(BASE_EVENT);
     const eventId = event.body._id;
@@ -171,7 +172,7 @@ describe("GET /events/:id/shifts", () => {
   });
 
   it("filters event shifts by status", async () => {
-    const loc = await post("/locations").send({ name: "Status Hall" });
+    const loc = await post("/locations").send({ name: "Status Hall", createdBy: "admin" });
     const event = await post("/events").send(BASE_EVENT);
     const locId = loc.body._id;
     const eventId = event.body._id;

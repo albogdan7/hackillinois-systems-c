@@ -3,7 +3,7 @@ import { ShiftModel } from "../shift/shift-schemas";
 import { SHIFT_STATUS } from "../shift/shift-schemas";
 
 async function makeLocation() {
-  const res = await post("/locations").send({ name: "Template Hall" });
+  const res = await post("/locations").send({ name: "Template Hall", createdBy: "admin" });
   return res.body._id as string;
 }
 

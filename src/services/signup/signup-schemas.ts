@@ -19,6 +19,8 @@ export interface ISignup {
   checkedOutAt?: Date;
   cancelledAt?: Date;
   cancellationReason?: string;
+  createdBy: string;
+  updatedBy?: string;
 }
 
 const SignupSchema = new mongoose.Schema<ISignup>(
@@ -42,6 +44,8 @@ const SignupSchema = new mongoose.Schema<ISignup>(
     checkedOutAt: { type: Date },
     cancelledAt: { type: Date },
     cancellationReason: { type: String },
+    createdBy: { type: String, required: true },
+    updatedBy: { type: String },
   },
   { timestamps: true }
 );
@@ -57,6 +61,7 @@ export const SignupModel = mongoose.model<ISignup>("Signup", SignupSchema);
 export const CreateSignupSchema = z.object({
   volunteerId: z.string().min(1),
   shiftId: z.string().min(1),
+  createdBy: z.string().min(1),
 });
 
 export const CancelSignupSchema = z.object({
