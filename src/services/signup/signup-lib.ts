@@ -209,6 +209,11 @@ export async function updateSignupStatus(id: string, newStatus: SignupStatus) {
     return signup;
   }
 
+  if (newStatus === "completed") {
+    if (!signup.checkedInAt) signup.checkedInAt = new Date();
+    signup.checkedOutAt = new Date();
+  }
+
   signup.status = newStatus;
   return signup.save();
 }
