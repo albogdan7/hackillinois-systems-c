@@ -135,5 +135,11 @@ async function generateShifts(template: IShiftTemplate & { _id: mongoose.Types.O
     };
   });
 
-  return ShiftModel.insertMany(shifts);
+  const created = await ShiftModel.insertMany(shifts);
+  if (created.length > 0) {
+    await ShiftTemplateModel.findByIdAndUpdate(template._id, {
+      generatedUntil: created[created.length - 1].endTime,
+    });
+  }
+  return created;
 }

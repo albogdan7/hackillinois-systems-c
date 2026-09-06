@@ -81,14 +81,14 @@ export async function createSignup(data: CreateSignupInput) {
     }
   }
 
-  const confirmedCount = await SignupModel.countDocuments({
-    shiftId: data.shiftId,
-    status: "confirmed",
-  });
+  const status: SignupStatus =
+    (shift.currentVolunteers ?? 0) < shift.maxVolunteers ? "confirmed" : "waitlisted";
 
-  const status: SignupStatus = confirmedCount < shift.maxVolunteers ? "confirmed" : "waitlisted";
-
-  return SignupModel.create({ ...data, status });
+  const signup = await SignupModel.create({ ...data, status });
+  if (status === "confirmed") {
+    await ShiftModel.findByIdAndUpdate(data.shiftId, { $inc: { currentVolunteers: 1 } });
+  }
+  return signup;
 }
 
 export async function cancelSignup(id: string, cancellationReason?: string) {
@@ -111,6 +111,7 @@ export async function cancelSignup(id: string, cancellationReason?: string) {
   await signup.save();
 
   if (wasConfirmed) {
+    await ShiftModel.findByIdAndUpdate(signup.shiftId, { $inc: { currentVolunteers: -1 } });
     await promoteNextWaitlisted(signup.shiftId.toString());
   }
 
@@ -156,6 +157,7 @@ async function promoteNextWaitlisted(shiftId: string) {
     if (hasOverlap) continue;
 
     await SignupModel.findByIdAndUpdate(candidate._id, { status: "confirmed" });
+    await ShiftModel.findByIdAndUpdate(shiftId, { $inc: { currentVolunteers: 1 } });
     return;
   }
 }
@@ -184,7 +186,9 @@ export async function checkOut(id: string) {
   }
   signup.checkedOutAt = new Date();
   signup.status = "completed";
-  return signup.save();
+  const saved = await signup.save();
+  await ShiftModel.findByIdAndUpdate(signup.shiftId, { $inc: { currentVolunteers: -1 } });
+  return saved;
 }
 
 export async function updateSignupStatus(id: string, newStatus: SignupStatus) {
@@ -200,12 +204,17 @@ export async function updateSignupStatus(id: string, newStatus: SignupStatus) {
     );
   }
 
+  const oldStatus = signup.status;
+
   if (newStatus === "cancelled") {
     signup.cancelledAt = new Date();
-    const wasConfirmed = signup.status === "confirmed";
+    const wasConfirmed = oldStatus === "confirmed";
     signup.status = newStatus;
     await signup.save();
-    if (wasConfirmed) await promoteNextWaitlisted(signup.shiftId.toString());
+    if (wasConfirmed) {
+      await ShiftModel.findByIdAndUpdate(signup.shiftId, { $inc: { currentVolunteers: -1 } });
+      await promoteNextWaitlisted(signup.shiftId.toString());
+    }
     return signup;
   }
 
@@ -215,5 +224,13 @@ export async function updateSignupStatus(id: string, newStatus: SignupStatus) {
   }
 
   signup.status = newStatus;
-  return signup.save();
+  await signup.save();
+
+  if (oldStatus === "confirmed" && newStatus !== "confirmed") {
+    await ShiftModel.findByIdAndUpdate(signup.shiftId, { $inc: { currentVolunteers: -1 } });
+  } else if (oldStatus === "waitlisted" && newStatus === "confirmed") {
+    await ShiftModel.findByIdAndUpdate(signup.shiftId, { $inc: { currentVolunteers: 1 } });
+  }
+
+  return signup;
 }

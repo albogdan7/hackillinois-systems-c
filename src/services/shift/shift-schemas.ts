@@ -19,6 +19,7 @@ export interface IShift {
   startTime: Date;
   endTime: Date;
   maxVolunteers: number;
+  currentVolunteers: number;
   requiredSkills?: string[];
   status: ShiftStatus;
   createdBy: string;
@@ -35,6 +36,7 @@ const ShiftSchema = new mongoose.Schema<IShift>(
     startTime: { type: Date, required: true },
     endTime: { type: Date, required: true },
     maxVolunteers: { type: Number, required: true, min: 1 },
+    currentVolunteers: { type: Number, default: 0, min: 0 },
     requiredSkills: [{ type: String, enum: SKILLS }],
     status: {
       type: String,

@@ -38,13 +38,12 @@ export async function getShiftById(id: string) {
 
 export async function getShiftWithCounts(id: string) {
   const shift = await getShiftById(id);
-  const confirmedCount = await SignupModel.countDocuments({ shiftId: id, status: "confirmed" });
   const waitlistCount = await SignupModel.countDocuments({ shiftId: id, status: "waitlisted" });
   return {
     ...shift.toObject(),
-    confirmedCount,
+    confirmedCount: shift.currentVolunteers,
     waitlistCount,
-    spotsAvailable: shift.maxVolunteers - confirmedCount,
+    spotsAvailable: shift.maxVolunteers - shift.currentVolunteers,
   };
 }
 
@@ -105,6 +104,7 @@ export async function cancelShift(id: string) {
     throw new APIError(400, "AlreadyCancelled", "Shift is already cancelled");
   }
   shift.status = "cancelled";
+  shift.currentVolunteers = 0;
   await shift.save();
 
   await SignupModel.updateMany(
@@ -137,5 +137,8 @@ export async function markNoShows(id: string) {
     { shiftId: id, status: "confirmed", checkedInAt: { $exists: false } },
     { status: "no-show" }
   );
+  if (result.modifiedCount > 0) {
+    await ShiftModel.findByIdAndUpdate(id, { $inc: { currentVolunteers: -result.modifiedCount } });
+  }
   return { markedCount: result.modifiedCount };
 }

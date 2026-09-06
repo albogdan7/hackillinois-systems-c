@@ -13,6 +13,7 @@ export interface IShiftTemplate {
   shiftId: mongoose.Types.ObjectId;
   recurrenceRule: IRecurrenceRule;
   createdBy: string;
+  generatedUntil?: Date;
 }
 
 const RecurrenceRuleSchema = new mongoose.Schema<IRecurrenceRule>(
@@ -31,6 +32,7 @@ const ShiftTemplateSchema = new mongoose.Schema<IShiftTemplate>(
     shiftId: { type: mongoose.Schema.Types.ObjectId, ref: "Shift", required: true },
     recurrenceRule: { type: RecurrenceRuleSchema, required: true },
     createdBy: { type: String, required: true },
+    generatedUntil: { type: Date },
   },
   { timestamps: true }
 );
