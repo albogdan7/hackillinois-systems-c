@@ -9,6 +9,8 @@ import {
   UpdateShiftTemplateInput,
 } from "./shift-template-schemas";
 import { ShiftModel } from "../shift/shift-schemas";
+import { LocationModel } from "../location/location-schemas";
+import { EventModel } from "../event/event-schemas";
 
 export async function getAllShiftTemplates(pagination: PaginationInput) {
   return paginate(ShiftTemplateModel, {}, { createdAt: -1 }, pagination);
@@ -21,8 +23,28 @@ export async function getShiftTemplateById(id: string) {
 }
 
 export async function createShiftTemplate(data: CreateShiftTemplateInput) {
-  const shift = await ShiftModel.findById(data.shiftId);
-  if (!shift) throw new APIError(404, "ShiftNotFound", "Base shift not found");
+  const location = await LocationModel.findById(data.locationId);
+  if (!location) throw new APIError(404, "LocationNotFound", "Location not found");
+
+  if (location.capacity && data.maxVolunteers > location.capacity) {
+    throw new APIError(
+      400,
+      "ExceedsLocationCapacity",
+      `maxVolunteers (${data.maxVolunteers}) exceeds location capacity (${location.capacity})`
+    );
+  }
+
+  if (data.eventId) {
+    const event = await EventModel.findById(data.eventId);
+    if (!event) throw new APIError(404, "EventNotFound", "Event not found");
+    if (data.startTime < event.startDate || data.endTime > event.endDate) {
+      throw new APIError(
+        400,
+        "OutsideEventWindow",
+        "Template shift must start and end within the event's date range"
+      );
+    }
+  }
 
   const template = await ShiftTemplateModel.create(data);
   await generateShifts(template.toObject() as IShiftTemplate & { _id: mongoose.Types.ObjectId });
@@ -41,7 +63,6 @@ export async function updateShiftTemplate(id: string, data: UpdateShiftTemplateI
 export async function deleteShiftTemplate(id: string) {
   const template = await ShiftTemplateModel.findByIdAndDelete(id);
   if (!template) throw new APIError(404, "TemplateNotFound", "Shift template not found");
-  // Nullify templateId on generated shifts rather than deleting them
   await ShiftModel.updateMany({ templateId: id }, { $unset: { templateId: "" } });
 }
 
@@ -51,11 +72,9 @@ function generateOccurrenceDates(startDate: Date, rule: IRecurrenceRule): Date[]
   const endDate = rule.endDate ? new Date(rule.endDate) : null;
 
   if (rule.frequency === "weekly" && rule.daysOfWeek?.length) {
-    // Iterate day-by-day, track which week we're in for interval support
     const weekInterval = rule.interval ?? 1;
     const start = new Date(startDate);
 
-    // Find the Sunday of the start week
     const weekAnchor = new Date(start);
     weekAnchor.setDate(weekAnchor.getDate() - weekAnchor.getDay());
     weekAnchor.setHours(0, 0, 0, 0);
@@ -106,13 +125,10 @@ function generateOccurrenceDates(startDate: Date, rule: IRecurrenceRule): Date[]
 }
 
 async function generateShifts(template: IShiftTemplate & { _id: mongoose.Types.ObjectId }) {
-  const baseShift = await ShiftModel.findById(template.shiftId);
-  if (!baseShift) throw new APIError(404, "ShiftNotFound", "Base shift not found");
-
-  const baseStart = new Date(baseShift.startTime);
+  const baseStart = new Date(template.startTime);
   const hours = baseStart.getHours();
   const minutes = baseStart.getMinutes();
-  const durationMs = baseShift.endTime.getTime() - baseShift.startTime.getTime();
+  const durationMs = template.endTime.getTime() - template.startTime.getTime();
 
   const dates = generateOccurrenceDates(baseStart, template.recurrenceRule);
 
@@ -121,15 +137,15 @@ async function generateShifts(template: IShiftTemplate & { _id: mongoose.Types.O
     startTime.setHours(hours, minutes, 0, 0);
     const endTime = new Date(startTime.getTime() + durationMs);
     return {
-      title: baseShift.title,
-      description: baseShift.description,
-      locationId: baseShift.locationId,
-      eventId: baseShift.eventId,
+      title: template.title,
+      description: template.description,
+      locationId: template.locationId,
+      eventId: template.eventId,
       templateId: template._id,
       startTime,
       endTime,
-      maxVolunteers: baseShift.maxVolunteers,
-      requiredSkills: baseShift.requiredSkills,
+      maxVolunteers: template.maxVolunteers,
+      requiredSkills: template.requiredSkills,
       status: "draft" as const,
       createdBy: template.createdBy,
     };

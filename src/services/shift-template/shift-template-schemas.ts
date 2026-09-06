@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { z } from "zod";
+import { SKILLS, SkillEnum } from "../../common/schemas";
 
 export interface IRecurrenceRule {
   frequency: "daily" | "weekly" | "monthly";
@@ -10,10 +11,17 @@ export interface IRecurrenceRule {
 }
 
 export interface IShiftTemplate {
-  shiftId: mongoose.Types.ObjectId;
+  title: string;
+  description?: string;
+  locationId: mongoose.Types.ObjectId;
+  eventId?: mongoose.Types.ObjectId;
+  startTime: Date;
+  endTime: Date;
+  maxVolunteers: number;
+  requiredSkills?: string[];
   recurrenceRule: IRecurrenceRule;
-  createdBy: string;
   generatedUntil?: Date;
+  createdBy: string;
 }
 
 const RecurrenceRuleSchema = new mongoose.Schema<IRecurrenceRule>(
@@ -29,10 +37,17 @@ const RecurrenceRuleSchema = new mongoose.Schema<IRecurrenceRule>(
 
 const ShiftTemplateSchema = new mongoose.Schema<IShiftTemplate>(
   {
-    shiftId: { type: mongoose.Schema.Types.ObjectId, ref: "Shift", required: true },
+    title: { type: String, required: true, trim: true },
+    description: { type: String },
+    locationId: { type: mongoose.Schema.Types.ObjectId, ref: "Location", required: true },
+    eventId: { type: mongoose.Schema.Types.ObjectId, ref: "Event" },
+    startTime: { type: Date, required: true },
+    endTime: { type: Date, required: true },
+    maxVolunteers: { type: Number, required: true, min: 1 },
+    requiredSkills: [{ type: String, enum: SKILLS }],
     recurrenceRule: { type: RecurrenceRuleSchema, required: true },
-    createdBy: { type: String, required: true },
     generatedUntil: { type: Date },
+    createdBy: { type: String, required: true },
   },
   { timestamps: true }
 );
@@ -54,11 +69,23 @@ const RecurrenceRuleZodSchema = z
     message: "Either endDate or occurrences must be specified",
   });
 
-export const CreateShiftTemplateSchema = z.object({
-  shiftId: z.string().min(1),
-  recurrenceRule: RecurrenceRuleZodSchema,
-  createdBy: z.string().min(1),
-});
+export const CreateShiftTemplateSchema = z
+  .object({
+    title: z.string().min(1),
+    description: z.string().optional(),
+    locationId: z.string().min(1),
+    eventId: z.string().optional(),
+    startTime: z.coerce.date(),
+    endTime: z.coerce.date(),
+    maxVolunteers: z.number().int().min(1),
+    requiredSkills: z.array(SkillEnum).optional(),
+    recurrenceRule: RecurrenceRuleZodSchema,
+    createdBy: z.string().min(1),
+  })
+  .refine((d) => d.endTime > d.startTime, {
+    message: "endTime must be after startTime",
+    path: ["endTime"],
+  });
 
 export const UpdateShiftTemplateSchema = z.object({
   recurrenceRule: RecurrenceRuleZodSchema.optional(),

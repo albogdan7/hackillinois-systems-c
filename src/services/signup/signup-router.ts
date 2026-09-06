@@ -42,7 +42,7 @@ router.put(
   asyncHandler(async (req, res) => {
     const result = CancelSignupSchema.safeParse(req.body);
     if (!result.success) throw new APIError(400, "BadRequest", result.error.message);
-    const signup = await lib.cancelSignup(req.params.id, result.data.cancellationReason);
+    const signup = await lib.cancelSignup(req.params.id, result.data.cancellationReason, result.data.cancelledBy);
     res.json(signup);
   })
 );

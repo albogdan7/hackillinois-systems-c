@@ -91,7 +91,7 @@ export async function createSignup(data: CreateSignupInput) {
   return signup;
 }
 
-export async function cancelSignup(id: string, cancellationReason?: string) {
+export async function cancelSignup(id: string, cancellationReason?: string, cancelledBy?: string) {
   const signup = await SignupModel.findById(id);
   if (!signup) throw new APIError(404, "SignupNotFound", "Signup not found");
 
@@ -108,6 +108,7 @@ export async function cancelSignup(id: string, cancellationReason?: string) {
   signup.status = "cancelled";
   signup.cancelledAt = new Date();
   if (cancellationReason) signup.cancellationReason = cancellationReason;
+  if (cancelledBy) signup.cancelledBy = cancelledBy;
   await signup.save();
 
   if (wasConfirmed) {
@@ -208,6 +209,7 @@ export async function updateSignupStatus(id: string, newStatus: SignupStatus) {
 
   if (newStatus === "cancelled") {
     signup.cancelledAt = new Date();
+    signup.cancelledBy = "admin";
     const wasConfirmed = oldStatus === "confirmed";
     signup.status = newStatus;
     await signup.save();
