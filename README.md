@@ -1,21 +1,22 @@
 # hackillinois-systems-c
-HackIllinois 2027 Systems Coding Challenge - Albert Bogdan
+**HackIllinois 2027 Systems Coding Challenge** by Albert Bogdan from 9/4 - 9/8
 
+**Prompt:**
 Using TypeScript, Express, and MongoDB, implement a volunteer backend API for creating/managing volunteer shift signups. The goal is to demonstrate your understanding of API design, database modeling, and TypeScript fundamentals. 
 We recommend using Mongoose and Zod for validation, but feel free to use a different solution if you feel it better fits the problem.
 We have intentionally given you few details -- we want to see that you can think about what a system needs to do and how to design it around its functionality. You do not need to handle authentication. Writing comprehensive tests is highly recommended!
 
-## Features
+## Features & Ideas
 
 - **Full CRUD** for volunteers, locations, events, shifts, signups, and recurring shift templates.
-- **Events group shifts** with summary stats (fill rate, signup counts, total volunteer hours) and auto-complete once their end date passes.
-- **Shift capacity** with optional caps (`maxVolunteers`) — uncapped shifts never fill, and capped shifts can't exceed their location's capacity.
-- **Signup eligibility checks** on create: required-skill matching, an age gate (`minAge` vs. the volunteer's age at shift start), and capacity.
-- **Automatic waitlisting** when a shift is full, with promotion of the next waitlisted volunteer when a confirmed spot frees up.
-- **Signup lifecycle** via a validated status state machine — confirm/waitlist, cancel, check-in/check-out, and no-show marking.
-- **Volunteer hours** computed from check-in/check-out times, exposed per volunteer and via a leaderboard.
-- **Cascading cancellation** — cancelling an event cancels its shifts and their signups; cancelling a shift cancels its signups.
-- **Recurring shifts** generated from template recurrence rules (daily/weekly/monthly with interval and days-of-week).
+- **Events group shifts** with summary stats (fill rate, signup counts, total volunteer hours) and auto-complete once their end date passes. Notes: This was made because an event (e.g. HackIllinois 2027) may have tons of shifts that are a part of it. Admins can then see overall statistics on how the volunteering for this event is doing. 
+- **Shift capacity** with optional caps (`maxVolunteers`). Uncapped shifts never fill, and capped shifts can't exceed their location's capacity. Notes: This was made because a shift (e.g. HackIllinois 2027 Shirt Distribution) may have a capacity for how many people are needed, and the location (e.g. Siebel 1st Floor) may have regulations on how many people can be there. This is an optional parameter because some events (e.g. cleaning up litter in NYC) do not have a realistic capacity that needs to be enforced. 
+- **Signup eligibility checks** on create: required-skill matching, an age gate (`minAge` vs. the volunteer's age at shift start), and capacity. Notes: Some shifts will need some kind of validity with a certification or skills that the person needs to have (e.g. CPR certification). Age may also be a requirement, as some events need adults rather than kids. I thought it would make a lot of sense that some shifts have requirements to sign-up so that people who do not match the criteria accidentally join. 
+- **Automatic waitlisting** when a shift is full, with promotion of the next waitlisted volunteer when a confirmed spot frees up. Notes: This is in order that people could sign-up for a waitlist like in real life for a full event. In the real world, perhaps an E-mail or SMS message can be sent to the person who goes from the waitlist to activation. 
+- **Signup lifecycle** via a validated status state machine — confirm/waitlist, cancel, check-in/check-out, and no-show marking. Notes: This matches the typical clock-in cycle of a person. 
+- **Volunteer hours** computed from check-in/check-out times, exposed per volunteer and via a leaderboard. Notes: People who need volunteer hours for a certain task can easily access their total count. 
+- **Cascading cancellation** — cancelling an event cancels its shifts and their signups; cancelling a shift cancels its signups. Notes: If a real-life event is canceled (e.g. HackIllinois 2027) (hopefully not), there should not be any other shifts that take place that are tied to the event. 
+- **Recurring shifts** generated from template recurrence rules (daily/weekly/monthly with interval and days-of-week). Notes: This table exists in case an event happens repeatedly (e.g. Monday Soup Kitchen 7-8pm), so that each shift can be auto-generated for this. 
 - **Validation & pagination** everywhere via Zod schemas, with a shared pagination helper on all list endpoints.
 - **OpenAPI/Swagger docs** served at `/docs`, and an **in-memory MongoDB** test suite that needs no external database.
 
