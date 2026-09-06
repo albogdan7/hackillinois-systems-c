@@ -5,6 +5,33 @@ Using TypeScript, Express, and MongoDB, implement a volunteer backend API for cr
 We recommend using Mongoose and Zod for validation, but feel free to use a different solution if you feel it better fits the problem.
 We have intentionally given you few details -- we want to see that you can think about what a system needs to do and how to design it around its functionality. You do not need to handle authentication. Writing comprehensive tests is highly recommended!
 
+## Setup & Run
+
+**Prerequisites:** Node.js 18+, MongoDB running locally (or a MongoDB Atlas URI)
+
+```bash
+# Install dependencies
+npm install
+
+# Configure environment
+cp .env.example .env
+# Edit .env if your MongoDB URI differs from the default (mongodb://localhost:27017/volunteer)
+
+# Start development server
+npm run dev
+```
+
+The API will be available at `http://localhost:3000`.  
+Swagger UI docs are at `http://localhost:3000/api-docs`.
+
+## Run Tests
+
+Tests use an in-memory MongoDB instance — no external database needed.
+
+```bash
+npm test
+```
+
 ## Database Schema
 
 ![alt text](image.png)
