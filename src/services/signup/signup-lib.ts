@@ -95,7 +95,7 @@ export async function cancelSignup(id: string, cancellationReason?: string) {
   const signup = await SignupModel.findById(id);
   if (!signup) throw new APIError(404, "SignupNotFound", "Signup not found");
 
-  if (!VALID_TRANSITIONS[signup.status].includes("cancelled")) {
+  if (!VALID_TRANSITIONS[signup.status]?.includes("cancelled")) {
     throw new APIError(
       400,
       "InvalidStatusTransition",
@@ -191,7 +191,7 @@ export async function updateSignupStatus(id: string, newStatus: SignupStatus) {
   const signup = await SignupModel.findById(id);
   if (!signup) throw new APIError(404, "SignupNotFound", "Signup not found");
 
-  const allowed = VALID_TRANSITIONS[signup.status];
+  const allowed = VALID_TRANSITIONS[signup.status] ?? [];
   if (!allowed.includes(newStatus)) {
     throw new APIError(
       400,
