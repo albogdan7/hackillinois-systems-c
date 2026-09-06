@@ -3,7 +3,7 @@ import { z } from "zod";
 
 export interface ILocation {
   name: string;
-  address?: string;
+  address: string;
   capacity?: number;
   createdBy: string;
   updatedBy?: string;
@@ -12,7 +12,7 @@ export interface ILocation {
 const LocationSchema = new mongoose.Schema<ILocation>(
   {
     name: { type: String, required: true, unique: true, trim: true },
-    address: { type: String },
+    address: { type: String, required: true, trim: true },
     capacity: { type: Number, min: 1 },
     createdBy: { type: String, required: true },
     updatedBy: { type: String },
@@ -24,7 +24,7 @@ export const LocationModel = mongoose.model<ILocation>("Location", LocationSchem
 
 export const CreateLocationSchema = z.object({
   name: z.string().min(1),
-  address: z.string().optional(),
+  address: z.string().min(1),
   capacity: z.number().int().min(1).optional(),
   createdBy: z.string().min(1),
 });

@@ -2,7 +2,7 @@ import { get, post, del } from "../../common/testTools";
 import { ShiftModel } from "../shift/shift-schemas";
 
 async function makeLocation() {
-  const res = await post("/locations").send({ name: "Template Hall", createdBy: "admin" });
+  const res = await post("/locations").send({ name: "Template Hall", address: "123 Test St", createdBy: "admin" });
   return res.body._id as string;
 }
 

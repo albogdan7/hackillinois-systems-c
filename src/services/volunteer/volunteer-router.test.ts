@@ -107,7 +107,7 @@ describe("GET /volunteers/leaderboard", () => {
   });
 
   it("ranks volunteers by total hours descending", async () => {
-    const loc = await post("/locations").send({ name: "LB Hall", capacity: 10, createdBy: "admin" });
+    const loc = await post("/locations").send({ name: "LB Hall", capacity: 10, address: "123 Test St", createdBy: "admin" });
     const shift1 = await post("/shifts").send({
       title: "Morning",
       locationId: loc.body._id,
@@ -176,7 +176,7 @@ describe("GET /volunteers/leaderboard", () => {
 
   it("respects the limit query param", async () => {
     // Create 3 volunteers with completed signups
-    const loc = await post("/locations").send({ name: "Limit Hall", capacity: 10, createdBy: "admin" });
+    const loc = await post("/locations").send({ name: "Limit Hall", capacity: 10, address: "123 Test St", createdBy: "admin" });
     const shift = await post("/shifts").send({
       title: "Limit Shift",
       locationId: loc.body._id,

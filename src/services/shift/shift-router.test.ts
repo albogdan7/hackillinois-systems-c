@@ -3,7 +3,7 @@ import { SHIFT_STATUS } from "./shift-schemas";
 import { SIGNUP_STATUS } from "../signup/signup-schemas";
 
 async function makeLocation() {
-  const res = await post("/locations").send({ name: "Test Hall", capacity: 50, createdBy: "admin" });
+  const res = await post("/locations").send({ name: "Test Hall", capacity: 50, address: "123 Test St", createdBy: "admin" });
   return res.body._id as string;
 }
 

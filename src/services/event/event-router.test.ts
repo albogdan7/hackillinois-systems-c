@@ -94,7 +94,7 @@ describe("GET /events/:id/summary", () => {
   });
 
   it("counts confirmed signups and fill rate", async () => {
-    const loc = await post("/locations").send({ name: "Summary Hall", createdBy: "admin" });
+    const loc = await post("/locations").send({ name: "Summary Hall", address: "123 Test St", createdBy: "admin" });
     const event = await post("/events").send(BASE_EVENT);
     const locId = loc.body._id;
     const eventId = event.body._id;
@@ -134,7 +134,7 @@ describe("GET /events/:id/summary", () => {
 
 describe("GET /events/:id/shifts", () => {
   it("returns shifts belonging to an event", async () => {
-    const loc = await post("/locations").send({ name: "Event Hall", createdBy: "admin" });
+    const loc = await post("/locations").send({ name: "Event Hall", address: "123 Test St", createdBy: "admin" });
     const locId = loc.body._id;
     const event = await post("/events").send(BASE_EVENT);
     const eventId = event.body._id;
@@ -172,7 +172,7 @@ describe("GET /events/:id/shifts", () => {
   });
 
   it("filters event shifts by status", async () => {
-    const loc = await post("/locations").send({ name: "Status Hall", createdBy: "admin" });
+    const loc = await post("/locations").send({ name: "Status Hall", address: "123 Test St", createdBy: "admin" });
     const event = await post("/events").send(BASE_EVENT);
     const locId = loc.body._id;
     const eventId = event.body._id;
