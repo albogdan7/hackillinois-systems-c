@@ -18,7 +18,7 @@ export interface IShift {
   templateId?: mongoose.Types.ObjectId;
   startTime: Date;
   endTime: Date;
-  maxVolunteers: number;
+  maxVolunteers?: number;
   currentVolunteers: number;
   requiredSkills?: string[];
   status: ShiftStatus;
@@ -35,7 +35,8 @@ const ShiftSchema = new mongoose.Schema<IShift>(
     templateId: { type: mongoose.Schema.Types.ObjectId, ref: "ShiftTemplate" },
     startTime: { type: Date, required: true },
     endTime: { type: Date, required: true },
-    maxVolunteers: { type: Number, required: true, min: 1 },
+    // Optional: absent means the shift is uncapped (unlimited volunteers)
+    maxVolunteers: { type: Number, min: 1 },
     currentVolunteers: { type: Number, default: 0, min: 0 },
     requiredSkills: [{ type: String, enum: SKILLS }],
     status: {
@@ -58,23 +59,26 @@ ShiftSchema.index({ requiredSkills: 1 });
 
 export const ShiftModel = mongoose.model<IShift>("Shift", ShiftSchema);
 
-export const CreateShiftSchema = z
-  .object({
-    title: z.string().min(1),
-    description: z.string().optional(),
-    locationId: z.string().min(1),
-    eventId: z.string().optional(),
-    startTime: z.coerce.date(),
-    endTime: z.coerce.date(),
-    maxVolunteers: z.number().int().min(1),
-    requiredSkills: z.array(SkillEnum).optional(),
-    status: z.enum(["draft", "published", "cancelled"]).default("draft"),
-    createdBy: z.string().min(1),
-  })
-  .refine((d) => d.endTime > d.startTime, {
-    message: "endTime must be after startTime",
-    path: ["endTime"],
-  });
+// The common "shape of a shift" — shared with CreateShiftTemplateSchema, since a
+// template defines the same shift fields plus a recurrence rule.
+export const ShiftShapeSchema = z.object({
+  title: z.string().min(1),
+  description: z.string().optional(),
+  locationId: z.string().min(1),
+  eventId: z.string().optional(),
+  startTime: z.coerce.date(),
+  endTime: z.coerce.date(),
+  maxVolunteers: z.number().int().min(1).optional(),
+  requiredSkills: z.array(SkillEnum).optional(),
+});
+
+export const CreateShiftSchema = ShiftShapeSchema.extend({
+  status: z.enum(["draft", "published", "cancelled"]).default("draft"),
+  createdBy: z.string().min(1),
+}).refine((d) => d.endTime > d.startTime, {
+  message: "endTime must be after startTime",
+  path: ["endTime"],
+});
 
 export const UpdateShiftSchema = z
   .object({

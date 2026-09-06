@@ -1,0 +1,94 @@
+Table Volunteer {
+  _id ObjectId [pk]
+  firstName string [not null]
+  lastName string [not null]
+  address string [not null]
+  dateOfBirth datetime [not null]
+  email string [not null]
+  phone string [not null]
+  skills string[]
+  emergencyContact_name string [not null]
+  emergencyContact_phone string [not null]
+  emergencyContact_relationship string [not null]
+  createdBy string [not null]
+  updatedBy string
+}
+
+Table Location {
+  _id ObjectId [pk]
+  name string [unique, not null]
+  address string [not null]
+  capacity number
+  createdBy string [not null]
+  updatedBy string
+}
+
+Table Event {
+  _id ObjectId [pk]
+  name string [not null]
+  description string
+  startDate datetime [not null]
+  endDate datetime [not null]
+  status string [not null, note: 'draft | published | cancelled | completed']
+  cancelledAt datetime
+  cancellationReason string
+  cancelledBy string
+  createdBy string [not null]
+  updatedBy string
+}
+
+Table ShiftTemplate {
+  _id ObjectId [pk]
+  title string [not null]
+  description string
+  locationId ObjectId [not null, ref: > Location._id]
+  eventId ObjectId [ref: > Event._id]
+  startTime datetime [not null]
+  endTime datetime [not null]
+  maxVolunteers number [note: 'null = uncapped / unlimited']
+  minAge number
+  requiredSkills string[]
+  recurrenceRule object [not null, note: 'frequency, interval, daysOfWeek, endDate, occurrences']
+  generatedUntil datetime
+  createdBy string [not null]
+  updatedBy string
+}
+
+Table Shift {
+  _id ObjectId [pk]
+  title string [not null]
+  description string
+  locationId ObjectId [not null, ref: > Location._id]
+  eventId ObjectId [ref: > Event._id]
+  templateId ObjectId [ref: > ShiftTemplate._id]
+  startTime datetime [not null]
+  endTime datetime [not null]
+  maxVolunteers number [note: 'null = uncapped / unlimited']
+  minAge number
+  currentVolunteers number [not null, note: 'denormalized confirmed count']
+  requiredSkills string[]
+  status string [not null, note: 'draft | published | cancelled']
+  cancelledAt datetime
+  cancellationReason string
+  cancelledBy string
+  createdBy string [not null]
+  updatedBy string
+}
+
+Table Signup {
+  _id ObjectId [pk]
+  volunteerId ObjectId [not null, ref: > Volunteer._id]
+  shiftId ObjectId [not null, ref: > Shift._id]
+  status string [not null, note: 'confirmed | waitlisted | cancelled | no-show | completed']
+  checkedInAt datetime
+  checkedOutAt datetime
+  cancelledAt datetime
+  cancellationReason string
+  cancelledBy string
+  createdBy string [not null]
+  updatedBy string
+
+  Indexes {
+    (volunteerId, shiftId) [unique]
+  }
+}

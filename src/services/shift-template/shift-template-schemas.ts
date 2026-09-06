@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { z } from "zod";
-import { SKILLS, SkillEnum } from "../../common/schemas";
+import { SKILLS } from "../../common/schemas";
+import { ShiftShapeSchema } from "../shift/shift-schemas";
 
 export interface IRecurrenceRule {
   frequency: "daily" | "weekly" | "monthly";
@@ -17,7 +18,7 @@ export interface IShiftTemplate {
   eventId?: mongoose.Types.ObjectId;
   startTime: Date;
   endTime: Date;
-  maxVolunteers: number;
+  maxVolunteers?: number;
   requiredSkills?: string[];
   recurrenceRule: IRecurrenceRule;
   generatedUntil?: Date;
@@ -43,7 +44,7 @@ const ShiftTemplateSchema = new mongoose.Schema<IShiftTemplate>(
     eventId: { type: mongoose.Schema.Types.ObjectId, ref: "Event" },
     startTime: { type: Date, required: true },
     endTime: { type: Date, required: true },
-    maxVolunteers: { type: Number, required: true, min: 1 },
+    maxVolunteers: { type: Number, min: 1 },
     requiredSkills: [{ type: String, enum: SKILLS }],
     recurrenceRule: { type: RecurrenceRuleSchema, required: true },
     generatedUntil: { type: Date },
@@ -69,23 +70,13 @@ const RecurrenceRuleZodSchema = z
     message: "Either endDate or occurrences must be specified",
   });
 
-export const CreateShiftTemplateSchema = z
-  .object({
-    title: z.string().min(1),
-    description: z.string().optional(),
-    locationId: z.string().min(1),
-    eventId: z.string().optional(),
-    startTime: z.coerce.date(),
-    endTime: z.coerce.date(),
-    maxVolunteers: z.number().int().min(1),
-    requiredSkills: z.array(SkillEnum).optional(),
-    recurrenceRule: RecurrenceRuleZodSchema,
-    createdBy: z.string().min(1),
-  })
-  .refine((d) => d.endTime > d.startTime, {
-    message: "endTime must be after startTime",
-    path: ["endTime"],
-  });
+export const CreateShiftTemplateSchema = ShiftShapeSchema.extend({
+  recurrenceRule: RecurrenceRuleZodSchema,
+  createdBy: z.string().min(1),
+}).refine((d) => d.endTime > d.startTime, {
+  message: "endTime must be after startTime",
+  path: ["endTime"],
+});
 
 export const UpdateShiftTemplateSchema = z.object({
   recurrenceRule: RecurrenceRuleZodSchema.optional(),

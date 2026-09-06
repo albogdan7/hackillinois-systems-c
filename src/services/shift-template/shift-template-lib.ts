@@ -9,8 +9,7 @@ import {
   UpdateShiftTemplateInput,
 } from "./shift-template-schemas";
 import { ShiftModel } from "../shift/shift-schemas";
-import { LocationModel } from "../location/location-schemas";
-import { EventModel } from "../event/event-schemas";
+import { validateShiftConstraints } from "../shift/shift-lib";
 
 export async function getAllShiftTemplates(pagination: PaginationInput) {
   return paginate(ShiftTemplateModel, {}, { createdAt: -1 }, pagination);
@@ -23,28 +22,7 @@ export async function getShiftTemplateById(id: string) {
 }
 
 export async function createShiftTemplate(data: CreateShiftTemplateInput) {
-  const location = await LocationModel.findById(data.locationId);
-  if (!location) throw new APIError(404, "LocationNotFound", "Location not found");
-
-  if (location.capacity && data.maxVolunteers > location.capacity) {
-    throw new APIError(
-      400,
-      "ExceedsLocationCapacity",
-      `maxVolunteers (${data.maxVolunteers}) exceeds location capacity (${location.capacity})`
-    );
-  }
-
-  if (data.eventId) {
-    const event = await EventModel.findById(data.eventId);
-    if (!event) throw new APIError(404, "EventNotFound", "Event not found");
-    if (data.startTime < event.startDate || data.endTime > event.endDate) {
-      throw new APIError(
-        400,
-        "OutsideEventWindow",
-        "Template shift must start and end within the event's date range"
-      );
-    }
-  }
+  await validateShiftConstraints(data);
 
   const template = await ShiftTemplateModel.create(data);
   await generateShifts(template.toObject() as IShiftTemplate & { _id: mongoose.Types.ObjectId });

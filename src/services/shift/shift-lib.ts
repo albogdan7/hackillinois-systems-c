@@ -43,15 +43,30 @@ export async function getShiftWithCounts(id: string) {
     ...shift.toObject(),
     confirmedCount: shift.currentVolunteers,
     waitlistCount,
-    spotsAvailable: shift.maxVolunteers - shift.currentVolunteers,
+    // null spotsAvailable means the shift is uncapped (unlimited)
+    spotsAvailable:
+      shift.maxVolunteers == null ? null : shift.maxVolunteers - shift.currentVolunteers,
   };
 }
 
-export async function createShift(data: CreateShiftInput) {
-  const location = await LocationModel.findById(data.locationId);
+// Shared by createShift and createShiftTemplate — both produce Shift documents
+// that must satisfy the same location-capacity and event-window constraints.
+export async function validateShiftConstraints(data: {
+  locationId: string;
+  maxVolunteers?: number;
+  startTime: Date;
+  endTime: Date;
+  eventId?: string;
+}) {
+  const [location, event] = await Promise.all([
+    LocationModel.findById(data.locationId),
+    data.eventId ? EventModel.findById(data.eventId) : Promise.resolve(null),
+  ]);
+
   if (!location) throw new APIError(404, "LocationNotFound", "Location not found");
 
-  if (location.capacity && data.maxVolunteers > location.capacity) {
+  // Skip the capacity check for uncapped shifts (maxVolunteers absent)
+  if (location.capacity && data.maxVolunteers != null && data.maxVolunteers > location.capacity) {
     throw new APIError(
       400,
       "ExceedsLocationCapacity",
@@ -60,7 +75,6 @@ export async function createShift(data: CreateShiftInput) {
   }
 
   if (data.eventId) {
-    const event = await EventModel.findById(data.eventId);
     if (!event) throw new APIError(404, "EventNotFound", "Event not found");
     if (data.startTime < event.startDate || data.endTime > event.endDate) {
       throw new APIError(
@@ -70,7 +84,10 @@ export async function createShift(data: CreateShiftInput) {
       );
     }
   }
+}
 
+export async function createShift(data: CreateShiftInput) {
+  await validateShiftConstraints(data);
   return ShiftModel.create(data);
 }
 
@@ -85,7 +102,7 @@ export async function updateShift(id: string, data: UpdateShiftInput) {
     const maxVol = data.maxVolunteers ?? shift.maxVolunteers;
     const location = await LocationModel.findById(locationId);
     if (!location) throw new APIError(404, "LocationNotFound", "Location not found");
-    if (location.capacity && maxVol > location.capacity) {
+    if (location.capacity && maxVol != null && maxVol > location.capacity) {
       throw new APIError(
         400,
         "ExceedsLocationCapacity",

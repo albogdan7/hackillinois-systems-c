@@ -43,6 +43,18 @@ describe("POST /signups — basic", () => {
     expect(res.body.status).toBe(SIGNUP_STATUS.CONFIRMED);
   });
 
+  it("never waitlists on an uncapped shift (no maxVolunteers)", async () => {
+    const locId = await makeLocation();
+    const shiftId = await makeShift(locId, { maxVolunteers: undefined });
+
+    for (const email of ["u1@example.com", "u2@example.com", "u3@example.com"]) {
+      const volId = await makeVolunteer(email);
+      const res = await post("/signups").send({ volunteerId: volId, shiftId, createdBy: "admin" });
+      expect(res.status).toBe(201);
+      expect(res.body.status).toBe(SIGNUP_STATUS.CONFIRMED);
+    }
+  });
+
   it("creates a waitlisted signup when shift is at capacity", async () => {
     const locId = await makeLocation();
     const shiftId = await makeShift(locId, { maxVolunteers: 1 });

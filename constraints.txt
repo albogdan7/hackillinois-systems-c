@@ -1,0 +1,99 @@
+Schema-level constraints (Mongoose + Zod)
+
+Volunteer
+- firstName, lastName, email, createdBy, address, DOB, phone — required
+- email — must be valid email format, unique, stored lowercase
+- skills — each must be from the allowed SKILLS enum
+- emergencyContact — name, phone, relationship each required
+
+Location
+- name, address, createdBy — required; name is unique
+- capacity — if provided, must be an integer >= 1
+
+Event
+- name, startDate, endDate, createdBy — required
+- description - optional
+- status — must be draft | published | cancelled | completed (default to draft)
+- if canceledBy, cancellationReason, cancelledAt is NN, the rest should also be NN, and status should be cancelled. 
+- shouldnt be able to cancel after event is completed
+- event should be moved into completed after time goes over endDate
+- endDate must be after startDate (on create and update)
+
+Shift
+- title, locationId, startTime, endTime, currentVolunteers, createdBy — required
+- maxVolunteers — optional; if absent the shift is uncapped (unlimited); if present, integer >= 1
+- requiredSkills — each from SKILLS enum
+- status — draft | published | cancelled (defaults to draft). gets auto cancelled if event or shifttemplate are cancelled, or shift itself is cancelled. 
+- endTime must be after startTime, and these must be in between the events start and end time
+- currentVolunteers — defaults to 0, cant go below 0
+
+ShiftTemplate
+- title, locationId, startTime, endTime, recurrenceRule, createdBy — required
+- maxVolunteers — optional (uncapped if absent); if present, integer ≥ 1
+- endTime must be after startTime
+- recurrenceRule — frequency must be daily | weekly | monthly; interval ≥ 1; daysOfWeek values 0–6; must specify either endDate or occurrences
+
+Signup
+- volunteerId, shiftId, status, createdBy — required
+- status — confirmed | waitlisted | cancelled | no-show | completed
+- Unique on (volunteerId, shiftId) — cant create two signups for the same volunteer+shift
+
+Business-logic checks (by endpoint)
+
+Locations (/locations)
+- GET /locations — list, paginated
+- GET /locations/:id — 404 if not found
+- POST /locations — name required and unique (409 LocationNameConflict); capacity >= 1 if given
+- PUT /locations/:id — 404 if missing; new name must not clash with another location (409)
+- DELETE /locations/:id — 404 if missing
+
+Volunteers (/volunteers)
+- GET /volunteers — list, paginated
+- GET /volunteers/leaderboard — top volunteers by total completed hours
+- GET /volunteers/:id/signups — 404 if volunteer missing; paginated, populates the shift
+- GET /volunteers/:id/hours — total hours from completed signups (checkedInAt to checkedOutAt)
+- GET /volunteers/:id — 404 if missing
+- POST /volunteers — email must be unique (409 EmailConflict), stored lowercase
+- PUT /volunteers/:id — 404 if missing; if email changes, must stay unique (409)
+- DELETE /volunteers/:id — 404 if missing
+
+Events (/events)
+- GET /events — list, optional status filter
+- GET /events/:id — 404 if missing
+- GET /events/:id/summary — 404 if missing; returns totalShifts, totalCapacity (capped shifts only), fillRate (capped shifts only), signup breakdown by status, total volunteer hours
+- GET /events/:id/shifts — 404 if missing; shifts for the event, paginated, optional status filter
+- POST /events — endDate must be after startDate
+- PUT /events/:id — 404 if missing; merged start/end dates must stay valid
+- PUT /events/:id/cancel — 404 if missing; cant cancel an already-cancelled event
+- DELETE /events/:id — 404 if missing
+
+Shifts (/shifts)
+- GET /shifts — list with filters (status, eventId, locationId, skill, from/to), paginated
+- GET /shifts/:id — 404 if missing; adds confirmedCount, waitlistCount, spotsAvailable (null if uncapped)
+- GET /shifts/:id/signups — 404 if missing; paginated, populates the volunteer
+- POST /shifts — location must exist; if capped, maxVolunteers must not exceed location capacity; if eventId given, event must exist and shift start AND end must fall within the events window; endTime after startTime
+- PUT /shifts/:id — cant update a cancelled shift; if location or maxVolunteers changes, re-checks capacity (skipped when uncapped)
+- PUT /shifts/:id/cancel — cant cancel an already-cancelled shift; cascade cancels all confirmed/waitlisted signups and resets currentVolunteers to 0
+- PUT /shifts/:id/mark-noshows — cant run on a cancelled shift; cant run before endTime has passed; marks confirmed signups with no check-in as no-show and decrements currentVolunteers
+- DELETE /shifts/:id — 404 if missing
+
+Shift Templates (/shift-templates)
+- GET /shift-templates — list, paginated
+- GET /shift-templates/:id — 404 if missing
+- POST /shift-templates — runs the same checks as POST /shifts (location exists, capacity, event window); then generates shifts from the recurrence rule and records generatedUntil
+- PUT /shift-templates/:id — 404 if missing; updates the recurrence rule
+- DELETE /shift-templates/:id — 404 if missing; keeps the generated shifts but nullifies their templateId
+
+Signups (/signups)
+- GET /signups — list with filters (volunteerId, shiftId, status), paginated
+- GET /signups/:id — 404 if missing
+- POST /signups — volunteer must exist; shift must exist and be published; volunteer not already confirmed/waitlisted for this shift; volunteer has all required skills; volunteer has no time-overlapping confirmed shift; uncapped shift always confirms; capped shift confirms if currentVolunteers < maxVolunteers, else waitlists
+- PUT /signups/:id/cancel — status must allow cancel (confirmed or waitlisted); records cancelledAt, cancellationReason, cancelledBy; if it was confirmed, decrements currentVolunteers and promotes the next eligible waitlisted volunteer (re-checks skills and overlap)
+- PUT /signups/:id/checkin — status must be confirmed; not already checked in
+- PUT /signups/:id/checkout — must be checked in first; not already checked out; sets status to completed
+- PUT /signups/:id/status — state machine: confirmed can go to cancelled/no-show/completed; waitlisted can go to confirmed/cancelled; cancelled/no-show/completed are terminal. Cancelling here delegates to cancelSignup (records cancelledBy = admin)
+
+Not enforced in code (diagram-only, aspirational)
+- minAge (Shift/ShiftTemplate) — no age check exists in createSignup
+- dateOfBirth, address (Volunteer) — not in the Mongoose model
+- cancelledAt / cancellationReason / cancelledBy on Event and Shift — cancel just flips status

@@ -81,8 +81,11 @@ export async function createSignup(data: CreateSignupInput) {
     }
   }
 
+  // Uncapped shifts (no maxVolunteers) never waitlist — everyone is confirmed
   const status: SignupStatus =
-    (shift.currentVolunteers ?? 0) < shift.maxVolunteers ? "confirmed" : "waitlisted";
+    shift.maxVolunteers == null || (shift.currentVolunteers ?? 0) < shift.maxVolunteers
+      ? "confirmed"
+      : "waitlisted";
 
   const signup = await SignupModel.create({ ...data, status });
   if (status === "confirmed") {
@@ -207,17 +210,10 @@ export async function updateSignupStatus(id: string, newStatus: SignupStatus) {
 
   const oldStatus = signup.status;
 
+  // Cancellation side-effects (audit fields, capacity decrement, waitlist
+  // promotion) live in cancelSignup — delegate rather than reimplement them.
   if (newStatus === "cancelled") {
-    signup.cancelledAt = new Date();
-    signup.cancelledBy = "admin";
-    const wasConfirmed = oldStatus === "confirmed";
-    signup.status = newStatus;
-    await signup.save();
-    if (wasConfirmed) {
-      await ShiftModel.findByIdAndUpdate(signup.shiftId, { $inc: { currentVolunteers: -1 } });
-      await promoteNextWaitlisted(signup.shiftId.toString());
-    }
-    return signup;
+    return cancelSignup(id, undefined, "admin");
   }
 
   if (newStatus === "completed") {

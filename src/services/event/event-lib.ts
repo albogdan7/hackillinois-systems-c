@@ -53,7 +53,12 @@ export async function getEventSummary(id: string) {
 
   const shifts = await ShiftModel.find({ eventId: id });
   const shiftIds = shifts.map((s) => s._id);
-  const totalCapacity = shifts.reduce((sum, s) => sum + s.maxVolunteers, 0);
+
+  // Fill rate is only meaningful for capped shifts — uncapped shifts have no
+  // finite capacity, so they're excluded from both sides of the ratio.
+  const cappedShifts = shifts.filter((s) => s.maxVolunteers != null);
+  const totalCapacity = cappedShifts.reduce((sum, s) => sum + (s.maxVolunteers ?? 0), 0);
+  const confirmedOnCapped = cappedShifts.reduce((sum, s) => sum + s.currentVolunteers, 0);
 
   const statusCounts: { _id: string; count: number }[] = await SignupModel.aggregate([
     { $match: { shiftId: { $in: shiftIds } } },
@@ -84,7 +89,10 @@ export async function getEventSummary(id: string) {
     eventId: id,
     totalShifts: shifts.length,
     totalCapacity,
-    fillRate: totalCapacity > 0 ? Math.round((confirmed / totalCapacity) * 1000) / 1000 : 0,
+    // fillRate uses confirmedOnCapped (capped shifts only), a different source
+    // than signups.confirmed below (all shifts) — intended, different metrics.
+    fillRate:
+      totalCapacity > 0 ? Math.round((confirmedOnCapped / totalCapacity) * 1000) / 1000 : 0,
     signups: {
       confirmed,
       waitlisted: byStatus["waitlisted"] ?? 0,
