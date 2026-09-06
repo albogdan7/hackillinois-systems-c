@@ -63,11 +63,11 @@ export async function createShift(data: CreateShiftInput) {
   if (data.eventId) {
     const event = await EventModel.findById(data.eventId);
     if (!event) throw new APIError(404, "EventNotFound", "Event not found");
-    if (data.startTime < event.startDate || data.startTime > event.endDate) {
+    if (data.startTime < event.startDate || data.endTime > event.endDate) {
       throw new APIError(
         400,
         "OutsideEventWindow",
-        "Shift startTime falls outside the event's date range"
+        "Shift must start and end within the event's date range"
       );
     }
   }

@@ -9,8 +9,6 @@ import {
   UpdateShiftTemplateInput,
 } from "./shift-template-schemas";
 import { ShiftModel } from "../shift/shift-schemas";
-import { LocationModel } from "../location/location-schemas";
-import { EventModel } from "../event/event-schemas";
 
 export async function getAllShiftTemplates(pagination: PaginationInput) {
   return paginate(ShiftTemplateModel, {}, { createdAt: -1 }, pagination);
@@ -23,21 +21,8 @@ export async function getShiftTemplateById(id: string) {
 }
 
 export async function createShiftTemplate(data: CreateShiftTemplateInput) {
-  const location = await LocationModel.findById(data.locationId);
-  if (!location) throw new APIError(404, "LocationNotFound", "Location not found");
-
-  if (location.capacity && data.maxVolunteers > location.capacity) {
-    throw new APIError(
-      400,
-      "ExceedsLocationCapacity",
-      `maxVolunteers exceeds location capacity (${location.capacity})`
-    );
-  }
-
-  if (data.eventId) {
-    const event = await EventModel.findById(data.eventId);
-    if (!event) throw new APIError(404, "EventNotFound", "Event not found");
-  }
+  const shift = await ShiftModel.findById(data.shiftId);
+  if (!shift) throw new APIError(404, "ShiftNotFound", "Base shift not found");
 
   const template = await ShiftTemplateModel.create(data);
   await generateShifts(template.toObject() as IShiftTemplate & { _id: mongoose.Types.ObjectId });
@@ -121,27 +106,30 @@ function generateOccurrenceDates(startDate: Date, rule: IRecurrenceRule): Date[]
 }
 
 async function generateShifts(template: IShiftTemplate & { _id: mongoose.Types.ObjectId }) {
-  const [hours, minutes] = template.startTimeOfDay.split(":").map(Number);
+  const baseShift = await ShiftModel.findById(template.shiftId);
+  if (!baseShift) throw new APIError(404, "ShiftNotFound", "Base shift not found");
 
-  const dates = generateOccurrenceDates(template.startDate, template.recurrenceRule);
+  const baseStart = new Date(baseShift.startTime);
+  const hours = baseStart.getHours();
+  const minutes = baseStart.getMinutes();
+  const durationMs = baseShift.endTime.getTime() - baseShift.startTime.getTime();
+
+  const dates = generateOccurrenceDates(baseStart, template.recurrenceRule);
 
   const shifts = dates.map((date) => {
     const startTime = new Date(date);
     startTime.setHours(hours, minutes, 0, 0);
-
-    const endTime = new Date(startTime);
-    endTime.setMinutes(endTime.getMinutes() + template.durationMinutes);
-
+    const endTime = new Date(startTime.getTime() + durationMs);
     return {
-      title: template.title,
-      description: template.description,
-      locationId: template.locationId,
-      eventId: template.eventId,
+      title: baseShift.title,
+      description: baseShift.description,
+      locationId: baseShift.locationId,
+      eventId: baseShift.eventId,
       templateId: template._id,
       startTime,
       endTime,
-      maxVolunteers: template.maxVolunteers,
-      requiredSkills: template.requiredSkills,
+      maxVolunteers: baseShift.maxVolunteers,
+      requiredSkills: baseShift.requiredSkills,
       status: "draft" as const,
       createdBy: template.createdBy,
     };

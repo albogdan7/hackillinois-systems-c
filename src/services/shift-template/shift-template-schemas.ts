@@ -1,6 +1,5 @@
 import mongoose from "mongoose";
 import { z } from "zod";
-import { SKILLS, SkillEnum } from "../../common/schemas";
 
 export interface IRecurrenceRule {
   frequency: "daily" | "weekly" | "monthly";
@@ -11,18 +10,9 @@ export interface IRecurrenceRule {
 }
 
 export interface IShiftTemplate {
-  title: string;
-  description?: string;
-  locationId: mongoose.Types.ObjectId;
-  eventId?: mongoose.Types.ObjectId;
-  startDate: Date;
-  startTimeOfDay: string;
-  durationMinutes: number;
-  maxVolunteers: number;
-  requiredSkills?: string[];
+  shiftId: mongoose.Types.ObjectId;
   recurrenceRule: IRecurrenceRule;
   createdBy: string;
-  updatedBy?: string;
 }
 
 const RecurrenceRuleSchema = new mongoose.Schema<IRecurrenceRule>(
@@ -38,18 +28,9 @@ const RecurrenceRuleSchema = new mongoose.Schema<IRecurrenceRule>(
 
 const ShiftTemplateSchema = new mongoose.Schema<IShiftTemplate>(
   {
-    title: { type: String, required: true, trim: true },
-    description: { type: String },
-    locationId: { type: mongoose.Schema.Types.ObjectId, ref: "Location", required: true },
-    eventId: { type: mongoose.Schema.Types.ObjectId, ref: "Event" },
-    startDate: { type: Date, required: true },
-    startTimeOfDay: { type: String, required: true },
-    durationMinutes: { type: Number, required: true, min: 1 },
-    maxVolunteers: { type: Number, required: true, min: 1 },
-    requiredSkills: [{ type: String, enum: SKILLS }],
+    shiftId: { type: mongoose.Schema.Types.ObjectId, ref: "Shift", required: true },
     recurrenceRule: { type: RecurrenceRuleSchema, required: true },
     createdBy: { type: String, required: true },
-    updatedBy: { type: String },
   },
   { timestamps: true }
 );
@@ -72,27 +53,13 @@ const RecurrenceRuleZodSchema = z
   });
 
 export const CreateShiftTemplateSchema = z.object({
-  title: z.string().min(1),
-  description: z.string().optional(),
-  locationId: z.string().min(1),
-  eventId: z.string().optional(),
-  startDate: z.coerce.date(),
-  startTimeOfDay: z.string().regex(/^\d{2}:\d{2}$/, "Must be in HH:MM format"),
-  durationMinutes: z.number().int().min(1),
-  maxVolunteers: z.number().int().min(1),
-  requiredSkills: z.array(SkillEnum).optional(),
+  shiftId: z.string().min(1),
   recurrenceRule: RecurrenceRuleZodSchema,
   createdBy: z.string().min(1),
 });
 
 export const UpdateShiftTemplateSchema = z.object({
-  title: z.string().min(1).optional(),
-  description: z.string().optional(),
-  locationId: z.string().optional(),
-  eventId: z.string().optional(),
-  maxVolunteers: z.number().int().min(1).optional(),
-  requiredSkills: z.array(SkillEnum).optional(),
-  updatedBy: z.string().min(1).optional(),
+  recurrenceRule: RecurrenceRuleZodSchema.optional(),
 });
 
 export type CreateShiftTemplateInput = z.infer<typeof CreateShiftTemplateSchema>;
