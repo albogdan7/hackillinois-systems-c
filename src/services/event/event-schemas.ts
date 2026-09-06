@@ -5,6 +5,7 @@ export const EVENT_STATUS = {
   DRAFT: "draft",
   PUBLISHED: "published",
   CANCELLED: "cancelled",
+  COMPLETED: "completed",
 } as const;
 
 export type EventStatus = (typeof EVENT_STATUS)[keyof typeof EVENT_STATUS];
@@ -15,6 +16,9 @@ export interface IEvent {
   startDate: Date;
   endDate: Date;
   status: EventStatus;
+  cancelledAt?: Date;
+  cancellationReason?: string;
+  cancelledBy?: string;
   createdBy: string;
   updatedBy?: string;
 }
@@ -30,6 +34,9 @@ const EventSchema = new mongoose.Schema<IEvent>(
       enum: Object.values(EVENT_STATUS),
       default: EVENT_STATUS.DRAFT,
     },
+    cancelledAt: { type: Date },
+    cancellationReason: { type: String },
+    cancelledBy: { type: String },
     createdBy: { type: String, required: true },
     updatedBy: { type: String },
   },
@@ -47,7 +54,7 @@ export const CreateEventSchema = z
     description: z.string().optional(),
     startDate: z.coerce.date(),
     endDate: z.coerce.date(),
-    status: z.enum(["draft", "published", "cancelled"]).default("draft"),
+    status: z.enum(["draft", "published", "cancelled", "completed"]).default("draft"),
     createdBy: z.string().min(1),
   })
   .refine((d) => d.endDate > d.startDate, {
@@ -67,6 +74,11 @@ export const UpdateEventSchema = z
     message: "endDate must be after startDate",
     path: ["endDate"],
   });
+
+export const CancelEventSchema = z.object({
+  cancellationReason: z.string().optional(),
+  cancelledBy: z.string().optional(),
+});
 
 export type CreateEventInput = z.infer<typeof CreateEventSchema>;
 export type UpdateEventInput = z.infer<typeof UpdateEventSchema>;

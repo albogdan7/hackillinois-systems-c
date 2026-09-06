@@ -11,10 +11,12 @@ export interface IEmergencyContact {
 export interface IVolunteer {
   firstName: string;
   lastName: string;
+  address: string;
+  dateOfBirth: Date;
   email: string;
-  phone?: string;
+  phone: string;
   skills?: string[];
-  emergencyContact?: IEmergencyContact;
+  emergencyContact: IEmergencyContact;
   createdBy: string;
   updatedBy?: string;
 }
@@ -23,13 +25,15 @@ const VolunteerSchema = new mongoose.Schema<IVolunteer>(
   {
     firstName: { type: String, required: true, trim: true },
     lastName: { type: String, required: true, trim: true },
-    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-    phone: { type: String },
+    address: { type: String, required: true, trim: true },
+    dateOfBirth: { type: Date, required: true },
+    email: { type: String, required: true, lowercase: true, trim: true },
+    phone: { type: String, required: true },
     skills: [{ type: String, enum: SKILLS }],
     emergencyContact: {
-      name: { type: String },
-      phone: { type: String },
-      relationship: { type: String },
+      name: { type: String, required: true },
+      phone: { type: String, required: true },
+      relationship: { type: String, required: true },
     },
     createdBy: { type: String, required: true },
     updatedBy: { type: String },
@@ -48,18 +52,22 @@ const EmergencyContactSchema = z.object({
 export const CreateVolunteerSchema = z.object({
   firstName: z.string().min(1),
   lastName: z.string().min(1),
+  address: z.string().min(1),
+  dateOfBirth: z.coerce.date(),
   email: z.string().email(),
-  phone: z.string().optional(),
+  phone: z.string().min(1),
   skills: z.array(SkillEnum).optional(),
-  emergencyContact: EmergencyContactSchema.optional(),
+  emergencyContact: EmergencyContactSchema,
   createdBy: z.string().min(1),
 });
 
 export const UpdateVolunteerSchema = z.object({
   firstName: z.string().min(1).optional(),
   lastName: z.string().min(1).optional(),
+  address: z.string().min(1).optional(),
+  dateOfBirth: z.coerce.date().optional(),
   email: z.string().email().optional(),
-  phone: z.string().optional(),
+  phone: z.string().min(1).optional(),
   skills: z.array(SkillEnum).optional(),
   emergencyContact: EmergencyContactSchema.optional(),
   updatedBy: z.string().min(1).optional(),

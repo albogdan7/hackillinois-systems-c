@@ -1,8 +1,8 @@
 Schema-level constraints (Mongoose + Zod)
 
 Volunteer
-- firstName, lastName, email, createdBy, address, DOB, phone — required
-- email — must be valid email format, unique, stored lowercase
+- firstName, lastName, email, createdBy, address, dateOfBirth, phone, emergencyContact — required
+- email — must be valid email format, stored lowercase (not unique)
 - skills — each must be from the allowed SKILLS enum
 - emergencyContact — name, phone, relationship each required
 
@@ -53,8 +53,8 @@ Volunteers (/volunteers)
 - GET /volunteers/:id/signups — 404 if volunteer missing; paginated, populates the shift
 - GET /volunteers/:id/hours — total hours from completed signups (checkedInAt to checkedOutAt)
 - GET /volunteers/:id — 404 if missing
-- POST /volunteers — requires firstName, lastName, address, dateOfBirth, email, phone, createdBy, and emergencyContact (name/phone/relationship); email must be unique (409 EmailConflict), stored lowercase
-- PUT /volunteers/:id — 404 if missing; if email changes, must stay unique (409)
+- POST /volunteers — requires firstName, lastName, address, dateOfBirth, email, phone, createdBy, and emergencyContact (name/phone/relationship); email stored lowercase (not unique)
+- PUT /volunteers/:id — 404 if missing
 - DELETE /volunteers/:id — 404 if missing
 
 Events (/events)
@@ -93,7 +93,7 @@ Signups (/signups)
 - PUT /signups/:id/checkout — must be checked in first; not already checked out; sets status to completed
 - PUT /signups/:id/status — state machine: confirmed can go to cancelled/no-show/completed; waitlisted can go to confirmed/cancelled; cancelled/no-show/completed are terminal. Cancelling here delegates to cancelSignup (records cancelledBy = admin)
 
-Not enforced in code (diagram-only, aspirational)
-- minAge (Shift/ShiftTemplate) — no age check exists in createSignup
-- dateOfBirth, address (Volunteer) — not in the Mongoose model
-- cancelledAt / cancellationReason / cancelledBy on Event and Shift — cancel just flips status
+Fields that exist but have no behavior wired yet (inert)
+- minAge (Shift/ShiftTemplate) — stored, but createSignup does not check volunteer age against it
+- cancelledAt / cancellationReason / cancelledBy on Event and Shift — stored, but cancelEvent/cancelShift only flip status; they do not populate these
+- Event status completed — in the enum, but nothing auto-transitions an event to completed after endDate

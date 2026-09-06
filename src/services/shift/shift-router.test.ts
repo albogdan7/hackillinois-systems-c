@@ -110,6 +110,19 @@ describe("PUT /shifts/:id/cancel", () => {
     const res = await put(`/shifts/${shift.body._id}/cancel`);
     expect(res.status).toBe(200);
     expect(res.body.status).toBe(SHIFT_STATUS.CANCELLED);
+    expect(res.body.cancelledAt).toBeDefined();
+  });
+
+  it("records cancellation reason and who cancelled", async () => {
+    const locId = await makeLocation();
+    const shift = await makeShift(locId);
+    const res = await put(`/shifts/${shift.body._id}/cancel`).send({
+      cancellationReason: "Weather",
+      cancelledBy: "coordinator",
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.cancellationReason).toBe("Weather");
+    expect(res.body.cancelledBy).toBe("coordinator");
   });
 
   it("rejects double cancel", async () => {
@@ -155,12 +168,20 @@ describe("PUT /shifts/:id/mark-noshows", () => {
       firstName: "A",
       lastName: "B",
       email: "ns1@example.com",
+      address: "123 Test St",
+      dateOfBirth: "1990-01-01",
+      phone: "555-0100",
+      emergencyContact: { name: "EC", phone: "555-0199", relationship: "parent" },
       createdBy: "admin",
     });
     const vol2 = await post("/volunteers").send({
       firstName: "C",
       lastName: "D",
       email: "ns2@example.com",
+      address: "123 Test St",
+      dateOfBirth: "1990-01-01",
+      phone: "555-0100",
+      emergencyContact: { name: "EC", phone: "555-0199", relationship: "parent" },
       createdBy: "admin",
     });
 

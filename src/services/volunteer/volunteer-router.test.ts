@@ -3,7 +3,11 @@ import { get, post, put, del } from "../../common/testTools";
 const BASE_VOLUNTEER = {
   firstName: "Jane",
   lastName: "Doe",
+  address: "123 Test St",
+  dateOfBirth: "1990-01-01",
   email: "jane@example.com",
+  phone: "555-0100",
+  emergencyContact: { name: "John Doe", phone: "555-0199", relationship: "spouse" },
   createdBy: "admin",
 };
 
@@ -45,13 +49,6 @@ describe("POST /volunteers", () => {
     expect(res.status).toBe(400);
   });
 
-  it("rejects duplicate email", async () => {
-    await post("/volunteers").send(BASE_VOLUNTEER);
-    const res = await post("/volunteers").send({ ...BASE_VOLUNTEER, firstName: "Janet" });
-    expect(res.status).toBe(409);
-    expect(res.body.error).toBe("EmailConflict");
-  });
-
   it("rejects invalid skill", async () => {
     const res = await post("/volunteers").send({ ...BASE_VOLUNTEER, skills: ["flying"] });
     expect(res.status).toBe(400);
@@ -79,13 +76,6 @@ describe("PUT /volunteers/:id", () => {
     const res = await put(`/volunteers/${created.body._id}`).send({ phone: "555-9999" });
     expect(res.status).toBe(200);
     expect(res.body.phone).toBe("555-9999");
-  });
-
-  it("rejects email conflict", async () => {
-    await post("/volunteers").send({ ...BASE_VOLUNTEER, email: "other@example.com" });
-    const v2 = await post("/volunteers").send({ ...BASE_VOLUNTEER, email: "jane2@example.com" });
-    const res = await put(`/volunteers/${v2.body._id}`).send({ email: "other@example.com" });
-    expect(res.status).toBe(409);
   });
 });
 
@@ -131,12 +121,20 @@ describe("GET /volunteers/leaderboard", () => {
       firstName: "Alice",
       lastName: "A",
       email: "alice.lb@example.com",
+      address: "123 Test St",
+      dateOfBirth: "1990-01-01",
+      phone: "555-0100",
+      emergencyContact: { name: "EC", phone: "555-0199", relationship: "parent" },
       createdBy: "admin",
     });
     const vol2 = await post("/volunteers").send({
       firstName: "Bob",
       lastName: "B",
       email: "bob.lb@example.com",
+      address: "123 Test St",
+      dateOfBirth: "1990-01-01",
+      phone: "555-0100",
+      emergencyContact: { name: "EC", phone: "555-0199", relationship: "parent" },
       createdBy: "admin",
     });
 
@@ -191,7 +189,11 @@ describe("GET /volunteers/leaderboard", () => {
       const vol = await post("/volunteers").send({
         firstName: `Vol${i}`,
         lastName: "L",
+        address: "123 Test St",
+        dateOfBirth: "1990-01-01",
         email: `vol${i}.limit@example.com`,
+        phone: "555-0100",
+        emergencyContact: { name: "EC", phone: "555-0199", relationship: "parent" },
         createdBy: "admin",
       });
       const signup = await post("/signups").send({

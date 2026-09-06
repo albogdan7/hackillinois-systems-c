@@ -17,31 +17,10 @@ export async function getVolunteerById(id: string) {
 }
 
 export async function createVolunteer(data: CreateVolunteerInput) {
-  const existing = await VolunteerModel.findOne({ email: data.email.toLowerCase() });
-  if (existing) {
-    throw new APIError(
-      409,
-      "EmailConflict",
-      `A volunteer with email "${data.email}" already exists`
-    );
-  }
   return VolunteerModel.create(data);
 }
 
 export async function updateVolunteer(id: string, data: UpdateVolunteerInput) {
-  if (data.email) {
-    const existing = await VolunteerModel.findOne({
-      email: data.email.toLowerCase(),
-      _id: { $ne: id },
-    });
-    if (existing) {
-      throw new APIError(
-        409,
-        "EmailConflict",
-        `A volunteer with email "${data.email}" already exists`
-      );
-    }
-  }
   const volunteer = await VolunteerModel.findByIdAndUpdate(id, data, {
     new: true,
     runValidators: true,

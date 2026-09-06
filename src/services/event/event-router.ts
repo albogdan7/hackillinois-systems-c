@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { asyncHandler, APIError } from "../../common/errors";
 import { PaginationSchema } from "../../common/paginate";
-import { CreateEventSchema, UpdateEventSchema } from "./event-schemas";
+import { CreateEventSchema, UpdateEventSchema, CancelEventSchema } from "./event-schemas";
 import * as lib from "./event-lib";
 
 const router = Router();
@@ -69,7 +69,13 @@ router.put(
 router.put(
   "/:id/cancel",
   asyncHandler(async (req, res) => {
-    const event = await lib.cancelEvent(req.params.id);
+    const result = CancelEventSchema.safeParse(req.body ?? {});
+    if (!result.success) throw new APIError(400, "BadRequest", result.error.message);
+    const event = await lib.cancelEvent(
+      req.params.id,
+      result.data.cancellationReason,
+      result.data.cancelledBy
+    );
     res.json(event);
   })
 );

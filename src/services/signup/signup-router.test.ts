@@ -11,8 +11,12 @@ async function makeVolunteer(email = "vol@example.com", skills: string[] = []) {
   const res = await post("/volunteers").send({
     firstName: "Test",
     lastName: "Volunteer",
+    address: "123 Test St",
+    dateOfBirth: "1990-01-01",
     email,
+    phone: "555-0100",
     skills,
+    emergencyContact: { name: "EC", phone: "555-0199", relationship: "parent" },
     createdBy: "admin",
   });
   return res.body._id as string;

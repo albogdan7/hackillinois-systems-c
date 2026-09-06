@@ -19,6 +19,7 @@ export interface IShiftTemplate {
   startTime: Date;
   endTime: Date;
   maxVolunteers?: number;
+  minAge?: number;
   requiredSkills?: string[];
   recurrenceRule: IRecurrenceRule;
   generatedUntil?: Date;
@@ -45,6 +46,7 @@ const ShiftTemplateSchema = new mongoose.Schema<IShiftTemplate>(
     startTime: { type: Date, required: true },
     endTime: { type: Date, required: true },
     maxVolunteers: { type: Number, min: 1 },
+    minAge: { type: Number, min: 0 },
     requiredSkills: [{ type: String, enum: SKILLS }],
     recurrenceRule: { type: RecurrenceRuleSchema, required: true },
     generatedUntil: { type: Date },

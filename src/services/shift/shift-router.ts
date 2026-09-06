@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { asyncHandler, APIError } from "../../common/errors";
 import { PaginationSchema } from "../../common/paginate";
-import { CreateShiftSchema, UpdateShiftSchema } from "./shift-schemas";
+import { CreateShiftSchema, UpdateShiftSchema, CancelShiftSchema } from "./shift-schemas";
 import * as lib from "./shift-lib";
 
 const router = Router();
@@ -52,7 +52,13 @@ router.post(
 router.put(
   "/:id/cancel",
   asyncHandler(async (req, res) => {
-    const shift = await lib.cancelShift(req.params.id);
+    const result = CancelShiftSchema.safeParse(req.body ?? {});
+    if (!result.success) throw new APIError(400, "BadRequest", result.error.message);
+    const shift = await lib.cancelShift(
+      req.params.id,
+      result.data.cancellationReason,
+      result.data.cancelledBy
+    );
     res.json(shift);
   })
 );

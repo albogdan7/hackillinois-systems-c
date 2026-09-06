@@ -19,9 +19,13 @@ export interface IShift {
   startTime: Date;
   endTime: Date;
   maxVolunteers?: number;
+  minAge?: number;
   currentVolunteers: number;
   requiredSkills?: string[];
   status: ShiftStatus;
+  cancelledAt?: Date;
+  cancellationReason?: string;
+  cancelledBy?: string;
   createdBy: string;
   updatedBy?: string;
 }
@@ -37,6 +41,7 @@ const ShiftSchema = new mongoose.Schema<IShift>(
     endTime: { type: Date, required: true },
     // Optional: absent means the shift is uncapped (unlimited volunteers)
     maxVolunteers: { type: Number, min: 1 },
+    minAge: { type: Number, min: 0 },
     currentVolunteers: { type: Number, default: 0, min: 0 },
     requiredSkills: [{ type: String, enum: SKILLS }],
     status: {
@@ -44,6 +49,9 @@ const ShiftSchema = new mongoose.Schema<IShift>(
       enum: Object.values(SHIFT_STATUS),
       default: SHIFT_STATUS.DRAFT,
     },
+    cancelledAt: { type: Date },
+    cancellationReason: { type: String },
+    cancelledBy: { type: String },
     createdBy: { type: String, required: true },
     updatedBy: { type: String },
   },
@@ -69,6 +77,7 @@ export const ShiftShapeSchema = z.object({
   startTime: z.coerce.date(),
   endTime: z.coerce.date(),
   maxVolunteers: z.number().int().min(1).optional(),
+  minAge: z.number().int().min(0).optional(),
   requiredSkills: z.array(SkillEnum).optional(),
 });
 
@@ -96,6 +105,11 @@ export const UpdateShiftSchema = z
     message: "endTime must be after startTime",
     path: ["endTime"],
   });
+
+export const CancelShiftSchema = z.object({
+  cancellationReason: z.string().optional(),
+  cancelledBy: z.string().optional(),
+});
 
 export type CreateShiftInput = z.infer<typeof CreateShiftSchema>;
 export type UpdateShiftInput = z.infer<typeof UpdateShiftSchema>;

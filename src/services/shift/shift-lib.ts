@@ -115,18 +115,25 @@ export async function updateShift(id: string, data: UpdateShiftInput) {
   return shift.save();
 }
 
-export async function cancelShift(id: string) {
+export async function cancelShift(id: string, cancellationReason?: string, cancelledBy?: string) {
   const shift = await getShiftById(id);
   if (shift.status === "cancelled") {
     throw new APIError(400, "AlreadyCancelled", "Shift is already cancelled");
   }
   shift.status = "cancelled";
   shift.currentVolunteers = 0;
+  shift.cancelledAt = new Date();
+  if (cancellationReason) shift.cancellationReason = cancellationReason;
+  if (cancelledBy) shift.cancelledBy = cancelledBy;
   await shift.save();
 
   await SignupModel.updateMany(
     { shiftId: id, status: { $in: ["confirmed", "waitlisted"] } },
-    { status: "cancelled", cancelledAt: new Date(), cancellationReason: "Shift cancelled" }
+    {
+      status: "cancelled",
+      cancelledAt: new Date(),
+      cancellationReason: cancellationReason ?? "Shift cancelled",
+    }
   );
 
   return shift;

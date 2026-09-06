@@ -70,6 +70,18 @@ describe("PUT /events/:id/cancel", () => {
     const res = await put(`/events/${created.body._id}/cancel`);
     expect(res.status).toBe(200);
     expect(res.body.status).toBe(EVENT_STATUS.CANCELLED);
+    expect(res.body.cancelledAt).toBeDefined();
+  });
+
+  it("records cancellation reason and who cancelled", async () => {
+    const created = await post("/events").send(BASE_EVENT);
+    const res = await put(`/events/${created.body._id}/cancel`).send({
+      cancellationReason: "Venue flooded",
+      cancelledBy: "organizer",
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.cancellationReason).toBe("Venue flooded");
+    expect(res.body.cancelledBy).toBe("organizer");
   });
 
   it("rejects double cancel", async () => {
@@ -114,6 +126,10 @@ describe("GET /events/:id/summary", () => {
       firstName: "Sum",
       lastName: "Mary",
       email: "summary@example.com",
+      address: "123 Test St",
+      dateOfBirth: "1990-01-01",
+      phone: "555-0100",
+      emergencyContact: { name: "EC", phone: "555-0199", relationship: "parent" },
       createdBy: "admin",
     });
     await post("/signups").send({ volunteerId: vol.body._id, shiftId: shift.body._id, createdBy: "admin" });

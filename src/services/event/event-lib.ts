@@ -33,13 +33,16 @@ export async function updateEvent(id: string, data: UpdateEventInput) {
   return event.save();
 }
 
-export async function cancelEvent(id: string) {
+export async function cancelEvent(id: string, cancellationReason?: string, cancelledBy?: string) {
   const event = await EventModel.findById(id);
   if (!event) throw new APIError(404, "EventNotFound", "Event not found");
   if (event.status === "cancelled") {
     throw new APIError(400, "AlreadyCancelled", "Event is already cancelled");
   }
   event.status = "cancelled";
+  event.cancelledAt = new Date();
+  if (cancellationReason) event.cancellationReason = cancellationReason;
+  if (cancelledBy) event.cancelledBy = cancelledBy;
   return event.save();
 }
 
