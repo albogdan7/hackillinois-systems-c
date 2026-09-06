@@ -64,7 +64,7 @@ Events (/events)
 - GET /events/:id/shifts — 404 if missing; shifts for the event, paginated, optional status filter
 - POST /events — requires name, startDate, endDate, createdBy; endDate must be after startDate
 - PUT /events/:id — 404 if missing; merged start/end dates must stay valid
-- PUT /events/:id/cancel — 404 if missing; cant cancel an already-cancelled event; records cancelledAt, and cancellationReason/cancelledBy when provided in the body
+- PUT /events/:id/cancel — 404 if missing; cant cancel an already-cancelled event (a completed event CAN still be cancelled); records cancelledAt, and cancellationReason/cancelledBy when provided; cascade cancels all of the events shifts and their confirmed/waitlisted signups
 - DELETE /events/:id — 404 if missing
 
 Shifts (/shifts)
@@ -96,4 +96,4 @@ Signups (/signups)
 Notes
 - minAge on a ShiftTemplate is copied onto the shifts it generates, but the age check itself only runs at signup time (POST /signups)
 - Event auto-completion is a lazy sweep on reads (no scheduler); a cron could call completeExpiredEvents directly
-- Cancelling an event does not currently cascade to its shifts/signups (only a shift cancel cascades to its signups)
+- Cancelling an event cascades to its shifts and their signups; cancelling a single shift cascades to that shifts signups

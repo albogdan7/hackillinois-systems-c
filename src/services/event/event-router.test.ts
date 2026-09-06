@@ -1,6 +1,7 @@
 import { get, post, put, del } from "../../common/testTools";
 import { EVENT_STATUS } from "./event-schemas";
 import { SHIFT_STATUS } from "../shift/shift-schemas";
+import { SIGNUP_STATUS } from "../signup/signup-schemas";
 
 const BASE_EVENT = {
   name: "Fall Food Drive",
@@ -90,6 +91,61 @@ describe("PUT /events/:id/cancel", () => {
     const res = await put(`/events/${created.body._id}/cancel`);
     expect(res.status).toBe(400);
     expect(res.body.error).toBe("AlreadyCancelled");
+  });
+
+  it("cascade cancels the event's shifts and their signups", async () => {
+    const loc = await post("/locations").send({
+      name: "Cascade Hall",
+      address: "123 Test St",
+      createdBy: "admin",
+    });
+    const event = await post("/events").send(BASE_EVENT);
+    const shift = await post("/shifts").send({
+      title: "Cascade Shift",
+      locationId: loc.body._id,
+      eventId: event.body._id,
+      startTime: "2026-10-10T09:00:00Z",
+      endTime: "2026-10-10T12:00:00Z",
+      maxVolunteers: 3,
+      status: SHIFT_STATUS.PUBLISHED,
+      createdBy: "admin",
+    });
+    const vol = await post("/volunteers").send({
+      firstName: "Cas",
+      lastName: "Cade",
+      address: "123 Test St",
+      dateOfBirth: "1990-01-01",
+      email: "cascade@example.com",
+      phone: "555-0100",
+      emergencyContact: { name: "EC", phone: "555-0199", relationship: "parent" },
+      createdBy: "admin",
+    });
+    const signup = await post("/signups").send({
+      volunteerId: vol.body._id,
+      shiftId: shift.body._id,
+      createdBy: "admin",
+    });
+
+    await put(`/events/${event.body._id}/cancel`).send({ cancellationReason: "Rained out" });
+
+    const shiftCheck = await get(`/shifts/${shift.body._id}`);
+    expect(shiftCheck.body.status).toBe(SHIFT_STATUS.CANCELLED);
+    const signupCheck = await get(`/signups/${signup.body._id}`);
+    expect(signupCheck.body.status).toBe(SIGNUP_STATUS.CANCELLED);
+  });
+
+  it("allows cancelling an event that has already completed", async () => {
+    const created = await post("/events").send({
+      name: "Done Event",
+      startDate: "2020-01-01T00:00:00Z",
+      endDate: "2020-12-31T00:00:00Z",
+      status: "published",
+      createdBy: "admin",
+    });
+    await get(`/events/${created.body._id}`); // triggers auto-completion
+    const res = await put(`/events/${created.body._id}/cancel`);
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe(EVENT_STATUS.CANCELLED);
   });
 });
 

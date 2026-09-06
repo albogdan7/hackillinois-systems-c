@@ -57,7 +57,28 @@ export async function cancelEvent(id: string, cancellationReason?: string, cance
   event.cancelledAt = new Date();
   if (cancellationReason) event.cancellationReason = cancellationReason;
   if (cancelledBy) event.cancelledBy = cancelledBy;
-  return event.save();
+  await event.save();
+
+  // Cascade: cancel the event's shifts and their signups
+  const reason = cancellationReason ?? "Event cancelled";
+  const shifts = await ShiftModel.find({ eventId: id, status: { $ne: "cancelled" } }).select("_id");
+  const shiftIds = shifts.map((s) => s._id);
+  if (shiftIds.length > 0) {
+    const shiftUpdate: Record<string, unknown> = {
+      status: "cancelled",
+      currentVolunteers: 0,
+      cancelledAt: new Date(),
+      cancellationReason: reason,
+    };
+    if (cancelledBy) shiftUpdate.cancelledBy = cancelledBy;
+    await ShiftModel.updateMany({ _id: { $in: shiftIds } }, shiftUpdate);
+    await SignupModel.updateMany(
+      { shiftId: { $in: shiftIds }, status: { $in: ["confirmed", "waitlisted"] } },
+      { status: "cancelled", cancelledAt: new Date(), cancellationReason: reason }
+    );
+  }
+
+  return event;
 }
 
 export async function deleteEvent(id: string) {
