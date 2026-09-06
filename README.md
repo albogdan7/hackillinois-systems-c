@@ -9,74 +9,48 @@ We have intentionally given you few details -- we want to see that you can think
 
 ```mermaid
 erDiagram
-    Volunteer {
-        ObjectId _id PK
-        string firstName
-        string lastName
-        string email
-        string phone
-        string[] skills
-        object emergencyContact
-    }
-
-    Location {
-        ObjectId _id PK
-        string name
-        string address
-        number capacity
-    }
-
-    Event {
-        ObjectId _id PK
-        string name
-        string description
-        date startDate
-        date endDate
-        string status
-        string createdBy
-        string updatedBy
-    }
-
-    ShiftTemplate {
-        ObjectId _id PK
-        ObjectId shiftId FK
-        object recurrenceRule
-        string createdBy
-    }
-
-    Shift {
-        ObjectId _id PK
-        string title
-        string description
-        ObjectId locationId FK
-        ObjectId eventId FK
-        ObjectId templateId FK
-        date startTime
-        date endTime
-        number maxVolunteers
-        string[] requiredSkills
-        string status
-        string createdBy
-        string updatedBy
-    }
-
-    Signup {
-        ObjectId _id PK
-        ObjectId volunteerId FK
-        ObjectId shiftId FK
-        string status
-        date checkedInAt
-        date checkedOutAt
-        date cancelledAt
-        string cancellationReason
-    }
-
     Volunteer ||--o{ Signup : "signs up for"
     Shift ||--o{ Signup : "has"
     Location ||--o{ Shift : "hosts"
     Event ||--o{ Shift : "contains"
     Shift ||--o{ ShiftTemplate : "is blueprint for"
     ShiftTemplate ||--o{ Shift : "generates"
+
+    Volunteer {
+        string firstName
+        string lastName
+        string email
+        string phone
+        string[] skills
+    }
+    Location {
+        string name
+        string address
+        number capacity
+    }
+    Event {
+        string name
+        date startDate
+        date endDate
+        string status
+    }
+    Shift {
+        string title
+        date startTime
+        date endTime
+        number maxVolunteers
+        string[] requiredSkills
+        string status
+    }
+    ShiftTemplate {
+        ObjectId shiftId FK
+        object recurrenceRule
+    }
+    Signup {
+        string status
+        date checkedInAt
+        date checkedOutAt
+    }
 ```
 
 ## Project Structure
