@@ -1,10 +1,20 @@
 import { APIError } from "../../common/errors";
 import { paginate, PaginationInput } from "../../common/paginate";
-import { EventModel, CreateEventInput, UpdateEventInput } from "./event-schemas";
+import { EventModel, EVENT_STATUS, CreateEventInput, UpdateEventInput } from "./event-schemas";
 import { ShiftModel } from "../shift/shift-schemas";
 import { SignupModel } from "../signup/signup-schemas";
 
+// Move any published event whose endDate has passed into "completed".
+// Lazy sweep run on reads (no scheduler); a cron could call this directly too.
+export async function completeExpiredEvents() {
+  await EventModel.updateMany(
+    { status: EVENT_STATUS.PUBLISHED, endDate: { $lt: new Date() } },
+    { status: EVENT_STATUS.COMPLETED }
+  );
+}
+
 export async function getAllEvents(pagination: PaginationInput, status?: string) {
+  await completeExpiredEvents();
   const filter = status ? { status } : {};
   return paginate(EventModel, filter, { startDate: 1 }, pagination);
 }
@@ -12,6 +22,10 @@ export async function getAllEvents(pagination: PaginationInput, status?: string)
 export async function getEventById(id: string) {
   const event = await EventModel.findById(id);
   if (!event) throw new APIError(404, "EventNotFound", "Event not found");
+  if (event.status === EVENT_STATUS.PUBLISHED && event.endDate < new Date()) {
+    event.status = EVENT_STATUS.COMPLETED;
+    await event.save();
+  }
   return event;
 }
 

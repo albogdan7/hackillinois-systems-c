@@ -58,13 +58,13 @@ Volunteers (/volunteers)
 - DELETE /volunteers/:id — 404 if missing
 
 Events (/events)
-- GET /events — list, optional status filter
-- GET /events/:id — 404 if missing
+- GET /events — list, optional status filter; first sweeps published events past their endDate into completed
+- GET /events/:id — 404 if missing; auto-completes the event if it is published and past its endDate
 - GET /events/:id/summary — 404 if missing; returns totalShifts, totalCapacity (capped shifts only), fillRate (capped shifts only), signup breakdown by status, total volunteer hours
 - GET /events/:id/shifts — 404 if missing; shifts for the event, paginated, optional status filter
 - POST /events — requires name, startDate, endDate, createdBy; endDate must be after startDate
 - PUT /events/:id — 404 if missing; merged start/end dates must stay valid
-- PUT /events/:id/cancel — 404 if missing; cant cancel an already-cancelled event
+- PUT /events/:id/cancel — 404 if missing; cant cancel an already-cancelled event; records cancelledAt, and cancellationReason/cancelledBy when provided in the body
 - DELETE /events/:id — 404 if missing
 
 Shifts (/shifts)
@@ -73,7 +73,7 @@ Shifts (/shifts)
 - GET /shifts/:id/signups — 404 if missing; paginated, populates the volunteer
 - POST /shifts — requires title, locationId, startTime, endTime, createdBy; location must exist; if capped, maxVolunteers must not exceed location capacity; if eventId given, event must exist and shift start AND end must fall within the events window; endTime after startTime
 - PUT /shifts/:id — cant update a cancelled shift; if location or maxVolunteers changes, re-checks capacity (skipped when uncapped)
-- PUT /shifts/:id/cancel — cant cancel an already-cancelled shift; cascade cancels all confirmed/waitlisted signups and resets currentVolunteers to 0
+- PUT /shifts/:id/cancel — cant cancel an already-cancelled shift; records cancelledAt, and cancellationReason/cancelledBy when provided; cascade cancels all confirmed/waitlisted signups (using the reason) and resets currentVolunteers to 0
 - PUT /shifts/:id/mark-noshows — cant run on a cancelled shift; cant run before endTime has passed; marks confirmed signups with no check-in as no-show and decrements currentVolunteers
 - DELETE /shifts/:id — 404 if missing
 
@@ -87,13 +87,13 @@ Shift Templates (/shift-templates)
 Signups (/signups)
 - GET /signups — list with filters (volunteerId, shiftId, status), paginated
 - GET /signups/:id — 404 if missing
-- POST /signups — requires volunteerId, shiftId, createdBy; volunteer must exist; shift must exist and be published; volunteer not already confirmed/waitlisted for this shift; volunteer has all required skills; volunteer has no time-overlapping confirmed shift; uncapped shift always confirms; capped shift confirms if currentVolunteers < maxVolunteers, else waitlists
+- POST /signups — requires volunteerId, shiftId, createdBy; volunteer must exist; shift must exist and be published; volunteer not already confirmed/waitlisted for this shift; volunteer has all required skills; if the shift has a minAge, volunteer must be at least that old as of the shift start (else UnderageForShift); volunteer has no time-overlapping confirmed shift; uncapped shift always confirms; capped shift confirms if currentVolunteers < maxVolunteers, else waitlists
 - PUT /signups/:id/cancel — status must allow cancel (confirmed or waitlisted); records cancelledAt, cancellationReason, cancelledBy; if it was confirmed, decrements currentVolunteers and promotes the next eligible waitlisted volunteer (re-checks skills and overlap)
 - PUT /signups/:id/checkin — status must be confirmed; not already checked in
 - PUT /signups/:id/checkout — must be checked in first; not already checked out; sets status to completed
 - PUT /signups/:id/status — state machine: confirmed can go to cancelled/no-show/completed; waitlisted can go to confirmed/cancelled; cancelled/no-show/completed are terminal. Cancelling here delegates to cancelSignup (records cancelledBy = admin)
 
-Fields that exist but have no behavior wired yet (inert)
-- minAge (Shift/ShiftTemplate) — stored, but createSignup does not check volunteer age against it
-- cancelledAt / cancellationReason / cancelledBy on Event and Shift — stored, but cancelEvent/cancelShift only flip status; they do not populate these
-- Event status completed — in the enum, but nothing auto-transitions an event to completed after endDate
+Notes
+- minAge on a ShiftTemplate is copied onto the shifts it generates, but the age check itself only runs at signup time (POST /signups)
+- Event auto-completion is a lazy sweep on reads (no scheduler); a cron could call completeExpiredEvents directly
+- Cancelling an event does not currently cascade to its shifts/signups (only a shift cancel cascades to its signups)

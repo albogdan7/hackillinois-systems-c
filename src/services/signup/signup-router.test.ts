@@ -138,6 +138,38 @@ describe("POST /signups — skill matching", () => {
   });
 });
 
+describe("POST /signups — age gate", () => {
+  it("rejects a volunteer under the shift minAge", async () => {
+    const locId = await makeLocation();
+    const shiftId = await makeShift(locId, { minAge: 21 });
+    const vol = await post("/volunteers").send({
+      firstName: "Kid",
+      lastName: "Young",
+      address: "123 Test St",
+      dateOfBirth: "2015-01-01",
+      email: "kid@example.com",
+      phone: "555-0100",
+      emergencyContact: { name: "EC", phone: "555-0199", relationship: "parent" },
+      createdBy: "admin",
+    });
+    const res = await post("/signups").send({
+      volunteerId: vol.body._id,
+      shiftId,
+      createdBy: "admin",
+    });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("UnderageForShift");
+  });
+
+  it("allows a volunteer who meets the shift minAge", async () => {
+    const locId = await makeLocation();
+    const shiftId = await makeShift(locId, { minAge: 18 });
+    const volId = await makeVolunteer("adult@example.com");
+    const res = await post("/signups").send({ volunteerId: volId, shiftId, createdBy: "admin" });
+    expect(res.status).toBe(201);
+  });
+});
+
 describe("POST /signups — overlap detection", () => {
   it("rejects signup for overlapping confirmed shift", async () => {
     const locId = await makeLocation();

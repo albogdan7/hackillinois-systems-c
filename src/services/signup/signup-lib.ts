@@ -4,6 +4,16 @@ import { SignupModel, SignupStatus, CreateSignupInput } from "./signup-schemas";
 import { VolunteerModel } from "../volunteer/volunteer-schemas";
 import { ShiftModel } from "../shift/shift-schemas";
 
+// Full years old on a given reference date
+function ageAt(dateOfBirth: Date, at: Date): number {
+  let age = at.getFullYear() - dateOfBirth.getFullYear();
+  const monthDiff = at.getMonth() - dateOfBirth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && at.getDate() < dateOfBirth.getDate())) {
+    age--;
+  }
+  return age;
+}
+
 const VALID_TRANSITIONS: Record<SignupStatus, SignupStatus[]> = {
   confirmed: ["cancelled", "no-show", "completed"],
   waitlisted: ["confirmed", "cancelled"],
@@ -58,6 +68,15 @@ export async function createSignup(data: CreateSignupInput) {
         `Volunteer is missing required skills: ${missing.join(", ")}`
       );
     }
+  }
+
+  // Age gate: volunteer must be at least minAge as of the shift's start
+  if (shift.minAge != null && ageAt(volunteer.dateOfBirth, shift.startTime) < shift.minAge) {
+    throw new APIError(
+      400,
+      "UnderageForShift",
+      `Volunteer must be at least ${shift.minAge} years old for this shift`
+    );
   }
 
   const confirmedSignups = await SignupModel.find({

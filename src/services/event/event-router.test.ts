@@ -93,6 +93,21 @@ describe("PUT /events/:id/cancel", () => {
   });
 });
 
+describe("Event auto-completion", () => {
+  it("auto-completes a published event whose endDate has passed", async () => {
+    const created = await post("/events").send({
+      name: "Past Event",
+      startDate: "2020-01-01T00:00:00Z",
+      endDate: "2020-12-31T00:00:00Z",
+      status: "published",
+      createdBy: "admin",
+    });
+    const res = await get(`/events/${created.body._id}`);
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe(EVENT_STATUS.COMPLETED);
+  });
+});
+
 describe("GET /events/:id/summary", () => {
   it("returns zero stats for an event with no shifts", async () => {
     const event = await post("/events").send(BASE_EVENT);
