@@ -1,6 +1,6 @@
 import { APIError } from "../../common/errors";
 import { paginate, PaginationInput } from "../../common/paginate";
-import { ShiftModel, CreateShiftInput, UpdateShiftInput } from "./shift-schemas";
+import { ShiftModel, SHIFT_STATUS, CreateShiftInput, UpdateShiftInput } from "./shift-schemas";
 import { LocationModel } from "../location/location-schemas";
 import { EventModel } from "../event/event-schemas";
 import { SignupModel } from "../signup/signup-schemas";
@@ -127,6 +127,9 @@ export async function getShiftSignups(id: string, pagination: PaginationInput) {
 
 export async function markNoShows(id: string) {
   const shift = await getShiftById(id);
+  if (shift.status === SHIFT_STATUS.CANCELLED) {
+    throw new APIError(400, "ShiftCancelled", "Cannot mark no-shows on a cancelled shift");
+  }
   if (new Date() < shift.endTime) {
     throw new APIError(400, "ShiftNotEnded", "Cannot mark no-shows before the shift has ended");
   }
