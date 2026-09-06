@@ -5,6 +5,20 @@ Using TypeScript, Express, and MongoDB, implement a volunteer backend API for cr
 We recommend using Mongoose and Zod for validation, but feel free to use a different solution if you feel it better fits the problem.
 We have intentionally given you few details -- we want to see that you can think about what a system needs to do and how to design it around its functionality. You do not need to handle authentication. Writing comprehensive tests is highly recommended!
 
+## Features
+
+- **Full CRUD** for volunteers, locations, events, shifts, signups, and recurring shift templates.
+- **Events group shifts** with summary stats (fill rate, signup counts, total volunteer hours) and auto-complete once their end date passes.
+- **Shift capacity** with optional caps (`maxVolunteers`) — uncapped shifts never fill, and capped shifts can't exceed their location's capacity.
+- **Signup eligibility checks** on create: required-skill matching, an age gate (`minAge` vs. the volunteer's age at shift start), and capacity.
+- **Automatic waitlisting** when a shift is full, with promotion of the next waitlisted volunteer when a confirmed spot frees up.
+- **Signup lifecycle** via a validated status state machine — confirm/waitlist, cancel, check-in/check-out, and no-show marking.
+- **Volunteer hours** computed from check-in/check-out times, exposed per volunteer and via a leaderboard.
+- **Cascading cancellation** — cancelling an event cancels its shifts and their signups; cancelling a shift cancels its signups.
+- **Recurring shifts** generated from template recurrence rules (daily/weekly/monthly with interval and days-of-week).
+- **Validation & pagination** everywhere via Zod schemas, with a shared pagination helper on all list endpoints.
+- **OpenAPI/Swagger docs** served at `/docs`, and an **in-memory MongoDB** test suite that needs no external database.
+
 ## Setup & Run
 
 **Prerequisites:** Node.js 18+, MongoDB running locally (or a MongoDB Atlas URI)
@@ -22,7 +36,7 @@ npm run dev
 ```
 
 The API will be available at `http://localhost:3000`.  
-Swagger UI docs are at `http://localhost:3000/api-docs`.
+Swagger UI docs are at `http://localhost:3000/docs` (raw OpenAPI spec at `/docs.json`).
 
 ## Run Tests
 
@@ -34,52 +48,97 @@ npm test
 
 ## Database Schema
 
-![alt text](image.png)
+![Database schema diagram](image.png)
 
 ## Project Structure
 
+Each service follows the same layered pattern:
+
+- `*-router.ts` — Express routes (HTTP layer)
+- `*-lib.ts` — business logic
+- `*-schemas.ts` — Mongoose model + Zod validation
+- `*-router.test.ts` — tests
+
 ```
 src/
-├── app.ts                          # Express app setup and router mounting
-├── server.ts                       # Entry point — connects to MongoDB and starts server
-├── common/
-│   ├── db.ts                       # Mongoose connection helper
-│   ├── errors.ts                   # APIError class and global error handler
-│   ├── openapi.ts                  # OpenAPI/Swagger spec setup
-│   ├── paginate.ts                 # Shared pagination helper for all list endpoints
-│   ├── schemas.ts                  # Shared enums (SKILLS) and Zod schemas
-│   ├── testSetup.ts                # Jest global setup — spins up in-memory MongoDB
-│   └── testTools.ts                # Supertest request helpers (get/post/put/del)
-└── services/
-    ├── event/                      # Events (groups of shifts)
-    │   ├── event-schemas.ts        # Mongoose model, Zod schemas, EVENT_STATUS enum
-    │   ├── event-lib.ts            # Business logic (CRUD, cancel, summary, shifts list)
-    │   ├── event-router.ts         # Express routes for /events
-    │   └── event-router.test.ts
-    ├── shift/                      # Individual volunteer shifts
-    │   ├── shift-schemas.ts        # Mongoose model, Zod schemas, SHIFT_STATUS enum
-    │   ├── shift-lib.ts            # Business logic (CRUD, cancel, mark-noshows, filters)
-    │   ├── shift-router.ts         # Express routes for /shifts
-    │   └── shift-router.test.ts
-    ├── shift-template/             # Recurring shift templates
-    │   ├── shift-template-schemas.ts  # Mongoose model, recurrence rule schema
-    │   ├── shift-template-lib.ts      # Business logic + shift generation from recurrence rules
-    │   ├── shift-template-router.ts   # Express routes for /shift-templates
-    │   └── shift-template-router.test.ts
-    ├── signup/                     # Volunteer-to-shift signups
-    │   ├── signup-schemas.ts       # Mongoose model, Zod schemas, SIGNUP_STATUS enum, VALID_TRANSITIONS
-    │   ├── signup-lib.ts           # Business logic (create, cancel, checkin/out, waitlist promotion)
-    │   ├── signup-router.ts        # Express routes for /signups
-    │   └── signup-router.test.ts
-    ├── volunteer/                  # Volunteers
-    │   ├── volunteer-schemas.ts    # Mongoose model and Zod schemas
-    │   ├── volunteer-lib.ts        # Business logic (CRUD, hours tracking, leaderboard)
-    │   ├── volunteer-router.ts     # Express routes for /volunteers
-    │   └── volunteer-router.test.ts
-    └── location/                   # Physical locations for shifts
-        ├── location-schemas.ts     # Mongoose model and Zod schemas
-        ├── location-lib.ts         # Business logic (CRUD, capacity validation)
-        ├── location-router.ts      # Express routes for /locations
-        └── location-router.test.ts
+├── app.ts            # Express app setup and router mounting
+├── server.ts         # Entry point — connects to MongoDB and starts the server
+├── common/           # Shared infra: db, errors, pagination, OpenAPI, shared schemas, test setup
+└── services/          # One folder per domain, each mounted under /<name>
+    ├── location/     # Physical locations — CRUD
+    ├── volunteer/    # Volunteers — CRUD, plus per-volunteer signups, logged hours, and a leaderboard
+    ├── event/        # Events (groups of shifts) — CRUD, cancel, summary stats, list shifts
+    ├── shift/        # Individual shifts — CRUD, cancel, mark no-shows, list signups
+    ├── signup/       # Volunteer-to-shift signups — create/list, cancel, check-in/out, status updates
+    └── shift-template/  # Recurring shift templates — CRUD; generates shifts from a recurrence rule
 ```
+
+## API Endpoints
+
+Interactive docs are available at `http://localhost:3000/docs` (Swagger UI). List endpoints support pagination.
+
+### Locations (`/locations`)
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/locations` | List locations |
+| GET | `/locations/:id` | Get a location |
+| POST | `/locations` | Create a location |
+| PUT | `/locations/:id` | Update a location |
+| DELETE | `/locations/:id` | Delete a location |
+
+### Volunteers (`/volunteers`)
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/volunteers` | List volunteers |
+| GET | `/volunteers/leaderboard` | Top volunteers by hours |
+| GET | `/volunteers/:id` | Get a volunteer |
+| GET | `/volunteers/:id/signups` | List a volunteer's signups |
+| GET | `/volunteers/:id/hours` | Get a volunteer's total logged hours |
+| POST | `/volunteers` | Create a volunteer |
+| PUT | `/volunteers/:id` | Update a volunteer |
+| DELETE | `/volunteers/:id` | Delete a volunteer |
+
+### Events (`/events`)
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/events` | List events (optional `status` filter) |
+| GET | `/events/:id` | Get an event |
+| GET | `/events/:id/summary` | Summary stats for an event |
+| GET | `/events/:id/shifts` | List an event's shifts |
+| POST | `/events` | Create an event |
+| PUT | `/events/:id` | Update an event |
+| PUT | `/events/:id/cancel` | Cancel an event (cascades to shifts/signups) |
+| DELETE | `/events/:id` | Delete an event |
+
+### Shifts (`/shifts`)
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/shifts` | List shifts |
+| GET | `/shifts/:id` | Get a shift (with signup counts) |
+| GET | `/shifts/:id/signups` | List a shift's signups |
+| POST | `/shifts` | Create a shift |
+| PUT | `/shifts/:id` | Update a shift |
+| PUT | `/shifts/:id/cancel` | Cancel a shift (cascades to signups) |
+| PUT | `/shifts/:id/mark-noshows` | Mark un-checked-in signups as no-shows |
+| DELETE | `/shifts/:id` | Delete a shift |
+
+### Signups (`/signups`)
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/signups` | List signups |
+| GET | `/signups/:id` | Get a signup |
+| POST | `/signups` | Create a signup (confirmed, or waitlisted if full) |
+| PUT | `/signups/:id/cancel` | Cancel a signup (promotes next waitlisted) |
+| PUT | `/signups/:id/checkin` | Check in |
+| PUT | `/signups/:id/checkout` | Check out |
+| PUT | `/signups/:id/status` | Update signup status |
+
+### Shift Templates (`/shift-templates`)
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/shift-templates` | List templates |
+| GET | `/shift-templates/:id` | Get a template |
+| POST | `/shift-templates` | Create a template (generates shifts from its recurrence rule) |
+| PUT | `/shift-templates/:id` | Update a template |
+| DELETE | `/shift-templates/:id` | Delete a template |
 
