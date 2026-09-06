@@ -7,15 +7,7 @@ We have intentionally given you few details -- we want to see that you can think
 
 ## Database Schema
 
-```mermaid
-erDiagram
-    Volunteer ||--o{ Signup : "signs up for"
-    Shift ||--o{ Signup : "has"
-    Location ||--o{ Shift : "hosts"
-    Event ||--o{ Shift : "contains"
-    Shift ||--o{ ShiftTemplate : "is blueprint for"
-    ShiftTemplate ||--o{ Shift : "generates"
-```
+![alt text](image.png)
 
 ## Project Structure
 
