@@ -1,4 +1,6 @@
 import { get, post, put, del } from "../../common/testTools";
+import { EVENT_STATUS } from "./event-schemas";
+import { SHIFT_STATUS } from "../shift/shift-schemas";
 
 const BASE_EVENT = {
   name: "Fall Food Drive",
@@ -16,11 +18,11 @@ describe("GET /events", () => {
 
   it("filters by status", async () => {
     await post("/events").send(BASE_EVENT);
-    await post("/events").send({ ...BASE_EVENT, name: "Event 2", status: "published" });
+    await post("/events").send({ ...BASE_EVENT, name: "Event 2", status: EVENT_STATUS.PUBLISHED });
     const res = await get("/events?status=published");
     expect(res.status).toBe(200);
     expect(res.body.events).toHaveLength(1);
-    expect(res.body.events[0].status).toBe("published");
+    expect(res.body.events[0].status).toBe(EVENT_STATUS.PUBLISHED);
   });
 });
 
@@ -29,7 +31,7 @@ describe("POST /events", () => {
     const res = await post("/events").send(BASE_EVENT);
     expect(res.status).toBe(201);
     expect(res.body.name).toBe("Fall Food Drive");
-    expect(res.body.status).toBe("draft");
+    expect(res.body.status).toBe(EVENT_STATUS.DRAFT);
   });
 
   it("rejects when endDate is before startDate", async () => {
@@ -67,7 +69,7 @@ describe("PUT /events/:id/cancel", () => {
     const created = await post("/events").send(BASE_EVENT);
     const res = await put(`/events/${created.body._id}/cancel`);
     expect(res.status).toBe(200);
-    expect(res.body.status).toBe("cancelled");
+    expect(res.body.status).toBe(EVENT_STATUS.CANCELLED);
   });
 
   it("rejects double cancel", async () => {
@@ -104,7 +106,7 @@ describe("GET /events/:id/summary", () => {
       startTime: "2026-10-10T09:00:00Z",
       endTime: "2026-10-10T12:00:00Z",
       maxVolunteers: 4,
-      status: "published",
+      status: SHIFT_STATUS.PUBLISHED,
       createdBy: "admin",
     });
 
@@ -143,7 +145,7 @@ describe("GET /events/:id/shifts", () => {
       startTime: "2026-10-10T09:00:00Z",
       endTime: "2026-10-10T12:00:00Z",
       maxVolunteers: 3,
-      status: "published",
+      status: SHIFT_STATUS.PUBLISHED,
       createdBy: "admin",
     });
     await post("/shifts").send({
@@ -152,7 +154,7 @@ describe("GET /events/:id/shifts", () => {
       startTime: "2026-10-10T13:00:00Z",
       endTime: "2026-10-10T16:00:00Z",
       maxVolunteers: 3,
-      status: "published",
+      status: SHIFT_STATUS.PUBLISHED,
       createdBy: "admin",
     });
 
@@ -181,7 +183,7 @@ describe("GET /events/:id/shifts", () => {
       startTime: "2026-10-10T09:00:00Z",
       endTime: "2026-10-10T12:00:00Z",
       maxVolunteers: 3,
-      status: "published",
+      status: SHIFT_STATUS.PUBLISHED,
       createdBy: "admin",
     });
     await post("/shifts").send({
@@ -191,13 +193,13 @@ describe("GET /events/:id/shifts", () => {
       startTime: "2026-10-11T09:00:00Z",
       endTime: "2026-10-11T12:00:00Z",
       maxVolunteers: 3,
-      status: "draft",
+      status: SHIFT_STATUS.DRAFT,
       createdBy: "admin",
     });
 
     const res = await get(`/events/${eventId}/shifts?status=published`);
     expect(res.body.shifts).toHaveLength(1);
-    expect(res.body.shifts[0].status).toBe("published");
+    expect(res.body.shifts[0].status).toBe(SHIFT_STATUS.PUBLISHED);
   });
 });
 

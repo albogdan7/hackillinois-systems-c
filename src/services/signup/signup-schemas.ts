@@ -1,7 +1,15 @@
 import mongoose from "mongoose";
 import { z } from "zod";
 
-export type SignupStatus = "confirmed" | "waitlisted" | "cancelled" | "no-show" | "completed";
+export const SIGNUP_STATUS = {
+  CONFIRMED: "confirmed",
+  WAITLISTED: "waitlisted",
+  CANCELLED: "cancelled",
+  NO_SHOW: "no-show",
+  COMPLETED: "completed",
+} as const;
+
+export type SignupStatus = (typeof SIGNUP_STATUS)[keyof typeof SIGNUP_STATUS];
 
 export interface ISignup {
   volunteerId: mongoose.Types.ObjectId;
@@ -27,7 +35,7 @@ const SignupSchema = new mongoose.Schema<ISignup>(
     },
     status: {
       type: String,
-      enum: ["confirmed", "waitlisted", "cancelled", "no-show", "completed"],
+      enum: Object.values(SIGNUP_STATUS),
       required: true,
     },
     checkedInAt: { type: Date },
@@ -56,7 +64,7 @@ export const CancelSignupSchema = z.object({
 });
 
 export const UpdateSignupStatusSchema = z.object({
-  status: z.enum(["confirmed", "waitlisted", "cancelled", "no-show", "completed"]),
+  status: z.enum(Object.values(SIGNUP_STATUS) as [SignupStatus, ...SignupStatus[]]),
 });
 
 export type CreateSignupInput = z.infer<typeof CreateSignupSchema>;

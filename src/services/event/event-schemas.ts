@@ -1,7 +1,13 @@
 import mongoose from "mongoose";
 import { z } from "zod";
 
-export type EventStatus = "draft" | "published" | "cancelled";
+export const EVENT_STATUS = {
+  DRAFT: "draft",
+  PUBLISHED: "published",
+  CANCELLED: "cancelled",
+} as const;
+
+export type EventStatus = (typeof EVENT_STATUS)[keyof typeof EVENT_STATUS];
 
 export interface IEvent {
   name: string;
@@ -21,8 +27,8 @@ const EventSchema = new mongoose.Schema<IEvent>(
     endDate: { type: Date, required: true },
     status: {
       type: String,
-      enum: ["draft", "published", "cancelled"],
-      default: "draft",
+      enum: Object.values(EVENT_STATUS),
+      default: EVENT_STATUS.DRAFT,
     },
     createdBy: { type: String, required: true },
     updatedBy: { type: String },

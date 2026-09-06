@@ -2,7 +2,13 @@ import mongoose from "mongoose";
 import { z } from "zod";
 import { SKILLS, SkillEnum } from "../../common/schemas";
 
-export type ShiftStatus = "draft" | "published" | "cancelled";
+export const SHIFT_STATUS = {
+  DRAFT: "draft",
+  PUBLISHED: "published",
+  CANCELLED: "cancelled",
+} as const;
+
+export type ShiftStatus = (typeof SHIFT_STATUS)[keyof typeof SHIFT_STATUS];
 
 export interface IShift {
   title: string;
@@ -32,8 +38,8 @@ const ShiftSchema = new mongoose.Schema<IShift>(
     requiredSkills: [{ type: String, enum: SKILLS }],
     status: {
       type: String,
-      enum: ["draft", "published", "cancelled"],
-      default: "draft",
+      enum: Object.values(SHIFT_STATUS),
+      default: SHIFT_STATUS.DRAFT,
     },
     createdBy: { type: String, required: true },
     updatedBy: { type: String },

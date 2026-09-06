@@ -1,4 +1,6 @@
 import { get, post, put } from "../../common/testTools";
+import { SIGNUP_STATUS } from "./signup-schemas";
+import { SHIFT_STATUS } from "../shift/shift-schemas";
 
 async function makeLocation() {
   const res = await post("/locations").send({ name: "Signup Hall", capacity: 50 });
@@ -22,7 +24,7 @@ async function makeShift(locationId: string, overrides = {}) {
     startTime: "2026-10-10T09:00:00Z",
     endTime: "2026-10-10T12:00:00Z",
     maxVolunteers: 2,
-    status: "published",
+    status: SHIFT_STATUS.PUBLISHED,
     createdBy: "admin",
     ...overrides,
   });
@@ -37,7 +39,7 @@ describe("POST /signups — basic", () => {
 
     const res = await post("/signups").send({ volunteerId: volId, shiftId });
     expect(res.status).toBe(201);
-    expect(res.body.status).toBe("confirmed");
+    expect(res.body.status).toBe(SIGNUP_STATUS.CONFIRMED);
   });
 
   it("creates a waitlisted signup when shift is at capacity", async () => {
@@ -50,7 +52,7 @@ describe("POST /signups — basic", () => {
     await post("/signups").send({ volunteerId: vol1, shiftId });
     const res = await post("/signups").send({ volunteerId: vol2, shiftId });
     expect(res.status).toBe(201);
-    expect(res.body.status).toBe("waitlisted");
+    expect(res.body.status).toBe(SIGNUP_STATUS.WAITLISTED);
   });
 
   it("rejects duplicate signup for same shift", async () => {
@@ -67,7 +69,7 @@ describe("POST /signups — basic", () => {
   it("rejects signup for non-published shift", async () => {
     const locId = await makeLocation();
     const volId = await makeVolunteer();
-    const shiftId = await makeShift(locId, { status: "draft" });
+    const shiftId = await makeShift(locId, { status: SHIFT_STATUS.DRAFT });
 
     const res = await post("/signups").send({ volunteerId: volId, shiftId });
     expect(res.status).toBe(400);
@@ -167,7 +169,7 @@ describe("PUT /signups/:id/cancel", () => {
     const signup = await post("/signups").send({ volunteerId: volId, shiftId });
     const res = await put(`/signups/${signup.body._id}/cancel`);
     expect(res.status).toBe(200);
-    expect(res.body.status).toBe("cancelled");
+    expect(res.body.status).toBe(SIGNUP_STATUS.CANCELLED);
     expect(res.body.cancelledAt).toBeDefined();
   });
 
@@ -193,13 +195,13 @@ describe("PUT /signups/:id/cancel", () => {
     const s1 = await post("/signups").send({ volunteerId: vol1, shiftId });
     const s2 = await post("/signups").send({ volunteerId: vol2, shiftId });
 
-    expect(s1.body.status).toBe("confirmed");
-    expect(s2.body.status).toBe("waitlisted");
+    expect(s1.body.status).toBe(SIGNUP_STATUS.CONFIRMED);
+    expect(s2.body.status).toBe(SIGNUP_STATUS.WAITLISTED);
 
     await put(`/signups/${s1.body._id}/cancel`);
 
     const promoted = await get(`/signups/${s2.body._id}`);
-    expect(promoted.body.status).toBe("confirmed");
+    expect(promoted.body.status).toBe(SIGNUP_STATUS.CONFIRMED);
   });
 
   it("rejects cancelling an already cancelled signup", async () => {
@@ -247,7 +249,7 @@ describe("PUT /signups/:id/checkin and checkout", () => {
     await put(`/signups/${signup.body._id}/checkin`);
     const res = await put(`/signups/${signup.body._id}/checkout`);
     expect(res.status).toBe(200);
-    expect(res.body.status).toBe("completed");
+    expect(res.body.status).toBe(SIGNUP_STATUS.COMPLETED);
     expect(res.body.checkedOutAt).toBeDefined();
   });
 });
@@ -267,8 +269,8 @@ describe("Shift cancellation cascade", () => {
 
     const check1 = await get(`/signups/${s1.body._id}`);
     const check2 = await get(`/signups/${s2.body._id}`);
-    expect(check1.body.status).toBe("cancelled");
-    expect(check2.body.status).toBe("cancelled");
+    expect(check1.body.status).toBe(SIGNUP_STATUS.CANCELLED);
+    expect(check2.body.status).toBe(SIGNUP_STATUS.CANCELLED);
   });
 });
 

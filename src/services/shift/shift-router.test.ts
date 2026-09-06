@@ -1,4 +1,6 @@
 import { get, post, put, del } from "../../common/testTools";
+import { SHIFT_STATUS } from "./shift-schemas";
+import { SIGNUP_STATUS } from "../signup/signup-schemas";
 
 async function makeLocation() {
   const res = await post("/locations").send({ name: "Test Hall", capacity: 50 });
@@ -12,7 +14,7 @@ async function makeShift(locationId: string, overrides = {}) {
     startTime: "2026-10-10T09:00:00Z",
     endTime: "2026-10-10T12:00:00Z",
     maxVolunteers: 5,
-    status: "published",
+    status: SHIFT_STATUS.PUBLISHED,
     createdBy: "admin",
     ...overrides,
   });
@@ -28,11 +30,11 @@ describe("GET /shifts", () => {
 
   it("filters by status", async () => {
     const locId = await makeLocation();
-    await makeShift(locId, { status: "draft" });
-    await makeShift(locId, { title: "Shift 2", status: "published" });
+    await makeShift(locId, { status: SHIFT_STATUS.DRAFT });
+    await makeShift(locId, { title: "Shift 2", status: SHIFT_STATUS.PUBLISHED });
     const res = await get("/shifts?status=published");
     expect(res.body.shifts).toHaveLength(1);
-    expect(res.body.shifts[0].status).toBe("published");
+    expect(res.body.shifts[0].status).toBe(SHIFT_STATUS.PUBLISHED);
   });
 });
 
@@ -107,7 +109,7 @@ describe("PUT /shifts/:id/cancel", () => {
     const shift = await makeShift(locId);
     const res = await put(`/shifts/${shift.body._id}/cancel`);
     expect(res.status).toBe(200);
-    expect(res.body.status).toBe("cancelled");
+    expect(res.body.status).toBe(SHIFT_STATUS.CANCELLED);
   });
 
   it("rejects double cancel", async () => {
@@ -170,10 +172,10 @@ describe("PUT /shifts/:id/mark-noshows", () => {
     expect(res.body.markedCount).toBe(1);
 
     const checked = await get(`/signups/${s2.body._id}`);
-    expect(checked.body.status).toBe("no-show");
+    expect(checked.body.status).toBe(SIGNUP_STATUS.NO_SHOW);
 
     const checkedIn = await get(`/signups/${s1.body._id}`);
-    expect(checkedIn.body.status).toBe("confirmed");
+    expect(checkedIn.body.status).toBe(SIGNUP_STATUS.CONFIRMED);
   });
 
   it("rejects mark-noshows if shift has not ended", async () => {
