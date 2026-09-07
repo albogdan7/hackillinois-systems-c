@@ -1,5 +1,5 @@
-# hackillinois-systems-c
-**HackIllinois 2027 Systems Coding Challenge** by Albert Bogdan from 9/4 - 9/8
+# hackillinois-systems-challenge
+**HackIllinois 2027 Systems Coding Challenge** by Albert Bogdan from 9/4/2026 - 9/8/2026
 
 **Prompt:**
 Using TypeScript, Express, and MongoDB, implement a volunteer backend API for creating/managing volunteer shift signups. The goal is to demonstrate your understanding of API design, database modeling, and TypeScript fundamentals. 
