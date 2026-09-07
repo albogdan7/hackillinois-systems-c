@@ -50,6 +50,8 @@ npm test
 
 ## Database Schema
 
+![Database schema diagram](db_schema_page2.png)
+
 See [db_schema.pdf](db_schema.pdf) for the full entity-relationship diagram.
 
 ## Project Structure
