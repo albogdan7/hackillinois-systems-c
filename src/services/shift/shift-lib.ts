@@ -112,6 +112,9 @@ export async function updateShift(id: string, data: UpdateShiftInput) {
   }
 
   Object.assign(shift, data);
+  // Editing one occurrence of a series detaches it, so later series-wide edits
+  // leave this individually-customized shift alone.
+  if (shift.templateId) shift.detached = true;
   return shift.save();
 }
 

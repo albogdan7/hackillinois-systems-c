@@ -60,11 +60,20 @@ SignupSchema.index({ volunteerId: 1 });
 
 export const SignupModel = mongoose.model<ISignup>("Signup", SignupSchema);
 
-export const CreateSignupSchema = z.object({
-  volunteerId: z.string().min(1),
-  shiftId: z.string().min(1),
-  createdBy: z.string().min(1),
-});
+// A signup targets either an existing shift (`shiftId`) or a virtual recurrence
+// occurrence (`templateId` + `recurrenceId`), which is materialized into a real
+// shift before the signup is created. Exactly one of the two forms is required.
+export const CreateSignupSchema = z
+  .object({
+    volunteerId: z.string().min(1),
+    shiftId: z.string().min(1).optional(),
+    templateId: z.string().min(1).optional(),
+    recurrenceId: z.coerce.date().optional(),
+    createdBy: z.string().min(1),
+  })
+  .refine((d) => Boolean(d.shiftId) !== Boolean(d.templateId && d.recurrenceId), {
+    message: "Provide either shiftId, or both templateId and recurrenceId",
+  });
 
 export const CancelSignupSchema = z.object({
   cancellationReason: z.string().optional(),

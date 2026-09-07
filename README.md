@@ -17,7 +17,7 @@ We have intentionally given you few details -- we want to see that you can think
 - **Signup lifecycle** via a validated status state machine — confirm/waitlist, cancel, check-in/check-out, and no-show marking. Notes: This matches the typical clock-in cycle of a person. 
 - **Volunteer hours** computed from check-in/check-out times, exposed per volunteer and via a leaderboard. Notes: People who need volunteer hours for a certain task can easily access their total count. 
 - **Cascading cancellation** — cancelling an event cancels its shifts and their signups; cancelling a shift cancels its signups. Notes: If a real-life event is canceled (e.g. HackIllinois 2027) (hopefully not), there should not be any other shifts that take place that are tied to the event. 
-- **Recurring shifts** generated from template recurrence rules (daily/weekly/monthly with interval and days-of-week). Notes: This table exists in case an event happens repeatedly (e.g. Monday Soup Kitchen 7-8pm), so that each shift can be auto-generated for this. 
+- **Recurring shifts** defined by template recurrence rules (daily/weekly/monthly with interval and days-of-week), expanded to occurrences on read and materialized into real shifts only when signed up for or individually edited — a Google Calendar–style model (see [DESIGN.md](DESIGN.md)). Notes: This exists in case an event happens repeatedly (e.g. Monday Soup Kitchen 7-8pm). Occurrences stay virtual until they're acted on, so editing the series vs. a single occurrence behaves like a calendar app. 
 - **Validation & pagination** everywhere via Zod schemas, with a shared pagination helper on all list endpoints.
 - **OpenAPI/Swagger docs** served at `/docs`, and an **in-memory MongoDB** test suite that needs no external database.
 
@@ -143,17 +143,21 @@ Interactive docs are available at `http://localhost:3000/docs` (Swagger UI). Lis
 | GET | `/signups` | List signups |
 | GET | `/signups/:id` | Get a signup |
 | POST | `/signups` | Create a signup (confirmed, or waitlisted if full) |
+| POST | `/signups` | Create a signup — target a `shiftId`, or a recurrence occurrence via `templateId` + `recurrenceId` (materialized on signup) |
 | PUT | `/signups/:id/cancel` | Cancel a signup (promotes next waitlisted) |
 | PUT | `/signups/:id/checkin` | Check in |
 | PUT | `/signups/:id/checkout` | Check out |
 | PUT | `/signups/:id/status` | Update signup status |
 
 ### Shift Templates (`/shift-templates`)
+Recurring shifts follow a Google Calendar–style model: a template defines the recurrence, and occurrences are **virtual** (expanded from the rule on read) until one is signed up for or individually edited, at which point it materializes into a real shift. See [DESIGN.md](DESIGN.md) for the full design.
+
 | Method | Path | Description |
 | --- | --- | --- |
 | GET | `/shift-templates` | List templates |
 | GET | `/shift-templates/:id` | Get a template |
-| POST | `/shift-templates` | Create a template (generates shifts from its recurrence rule) |
+| GET | `/shift-templates/:id/occurrences?from&to` | Expand a series into occurrences over a date range (virtual + materialized) |
+| POST | `/shift-templates` | Create a recurring shift template |
 | PUT | `/shift-templates/:id` | Update a template |
-| DELETE | `/shift-templates/:id` | Delete a template |
+| DELETE | `/shift-templates/:id` | Delete a template (materialized shifts are kept, detached) |
 

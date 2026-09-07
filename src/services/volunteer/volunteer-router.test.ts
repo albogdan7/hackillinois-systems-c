@@ -1,4 +1,5 @@
 import { get, post, put, del } from "../../common/testTools";
+import { SignupModel } from "../signup/signup-schemas";
 
 const BASE_VOLUNTEER = {
   firstName: "Jane",
@@ -163,6 +164,22 @@ describe("GET /volunteers/leaderboard", () => {
     });
     await put(`/signups/${s3.body._id}/checkin`);
     await put(`/signups/${s3.body._id}/checkout`);
+
+    // check-in/out stamp real wall-clock time, so completed hours would otherwise
+    // be sub-second noise and the ranking a coin-flip. Pin explicit intervals so
+    // Alice totals 7h (3h + 4h) and Bob 3h — a deterministic order.
+    await SignupModel.updateOne(
+      { _id: s1.body._id },
+      { checkedInAt: new Date("2024-01-01T09:00:00Z"), checkedOutAt: new Date("2024-01-01T12:00:00Z") }
+    );
+    await SignupModel.updateOne(
+      { _id: s2.body._id },
+      { checkedInAt: new Date("2024-01-01T13:00:00Z"), checkedOutAt: new Date("2024-01-01T17:00:00Z") }
+    );
+    await SignupModel.updateOne(
+      { _id: s3.body._id },
+      { checkedInAt: new Date("2024-01-01T09:00:00Z"), checkedOutAt: new Date("2024-01-01T12:00:00Z") }
+    );
 
     const res = await get("/volunteers/leaderboard");
     expect(res.status).toBe(200);

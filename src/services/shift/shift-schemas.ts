@@ -16,6 +16,12 @@ export interface IShift {
   locationId: mongoose.Types.ObjectId;
   eventId?: mongoose.Types.ObjectId;
   templateId?: mongoose.Types.ObjectId;
+  // Original start of the recurrence slot this shift stands in for (its stable
+  // "recurrence-id"). Set on shifts materialized from a template.
+  recurrenceId?: Date;
+  // true once a single occurrence has been edited on its own, so bulk "edit the
+  // whole series" updates must skip it. Generated shifts start attached (false).
+  detached: boolean;
   startTime: Date;
   endTime: Date;
   maxVolunteers?: number;
@@ -37,6 +43,8 @@ const ShiftSchema = new mongoose.Schema<IShift>(
     locationId: { type: mongoose.Schema.Types.ObjectId, ref: "Location", required: true },
     eventId: { type: mongoose.Schema.Types.ObjectId, ref: "Event" },
     templateId: { type: mongoose.Schema.Types.ObjectId, ref: "ShiftTemplate" },
+    recurrenceId: { type: Date },
+    detached: { type: Boolean, default: false },
     startTime: { type: Date, required: true },
     endTime: { type: Date, required: true },
     // Optional: absent means the shift is uncapped (unlimited volunteers)
@@ -64,6 +72,19 @@ ShiftSchema.index({ eventId: 1 });
 ShiftSchema.index({ status: 1, startTime: 1 });
 // requiredSkills: skill filter (multikey index — one entry per element)
 ShiftSchema.index({ requiredSkills: 1 });
+// One materialized shift per (template, occurrence slot). Partial so standalone
+// shifts (no templateId/recurrenceId) don't collide on null, and so a later
+// materialize-on-signup upsert can rely on this pair being unique.
+ShiftSchema.index(
+  { templateId: 1, recurrenceId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      templateId: { $exists: true },
+      recurrenceId: { $exists: true },
+    },
+  }
+);
 
 export const ShiftModel = mongoose.model<IShift>("Shift", ShiftSchema);
 

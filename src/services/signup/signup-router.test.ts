@@ -1,19 +1,20 @@
 import { get, post, put } from "../../common/testTools";
 import { SIGNUP_STATUS } from "./signup-schemas";
-import { SHIFT_STATUS } from "../shift/shift-schemas";
+import { SHIFT_STATUS, ShiftModel } from "../shift/shift-schemas";
 
 async function makeLocation() {
   const res = await post("/locations").send({ name: "Signup Hall", capacity: 50, address: "123 Test St", createdBy: "admin" });
   return res.body._id as string;
 }
 
-async function makeVolunteer(email = "vol@example.com", skills: string[] = []) {
+let volunteerSeq = 0;
+async function makeVolunteer(email?: string, skills: string[] = []) {
   const res = await post("/volunteers").send({
     firstName: "Test",
     lastName: "Volunteer",
     address: "123 Test St",
     dateOfBirth: "1990-01-01",
-    email,
+    email: email ?? `vol${++volunteerSeq}@example.com`,
     phone: "555-0100",
     skills,
     emergencyContact: { name: "EC", phone: "555-0199", relationship: "parent" },
@@ -322,6 +323,118 @@ describe("Shift cancellation cascade", () => {
     const check2 = await get(`/signups/${s2.body._id}`);
     expect(check1.body.status).toBe(SIGNUP_STATUS.CANCELLED);
     expect(check2.body.status).toBe(SIGNUP_STATUS.CANCELLED);
+  });
+});
+
+describe("POST /signups — materialize a recurrence occurrence", () => {
+  async function makeTemplate(locationId: string, overrides = {}) {
+    const res = await post("/shift-templates").send({
+      title: "Weekly Desk",
+      locationId,
+      startTime: "2026-10-06T09:00:00Z",
+      endTime: "2026-10-06T12:00:00Z",
+      maxVolunteers: 2,
+      recurrenceRule: { frequency: "weekly", daysOfWeek: [1, 3], occurrences: 4 },
+      createdBy: "admin",
+      ...overrides,
+    });
+    return res.body._id as string;
+  }
+
+  it("materializes a shift on first signup to a virtual occurrence", async () => {
+    const locId = await makeLocation();
+    const volId = await makeVolunteer();
+    const templateId = await makeTemplate(locId);
+
+    const res = await post("/signups").send({
+      volunteerId: volId,
+      templateId,
+      recurrenceId: "2026-10-07T09:00:00Z",
+      createdBy: "admin",
+    });
+    expect(res.status).toBe(201);
+    expect(res.body.status).toBe(SIGNUP_STATUS.CONFIRMED);
+
+    // A concrete shift now exists for that slot, at the right instant.
+    const shifts = await ShiftModel.find({ templateId });
+    expect(shifts.length).toBe(1);
+    expect(shifts[0].recurrenceId?.toISOString()).toBe("2026-10-07T09:00:00.000Z");
+    expect(shifts[0].status).toBe(SHIFT_STATUS.PUBLISHED);
+    expect(shifts[0].currentVolunteers).toBe(1);
+  });
+
+  it("reuses the same shift when a second volunteer signs up for the same occurrence", async () => {
+    const locId = await makeLocation();
+    const templateId = await makeTemplate(locId);
+    const vol1 = await makeVolunteer("occ1@example.com");
+    const vol2 = await makeVolunteer("occ2@example.com");
+
+    const body = { templateId, recurrenceId: "2026-10-07T09:00:00Z", createdBy: "admin" };
+    await post("/signups").send({ volunteerId: vol1, ...body });
+    await post("/signups").send({ volunteerId: vol2, ...body });
+
+    // Idempotent materialization: one shift, two signups on it.
+    const shifts = await ShiftModel.find({ templateId });
+    expect(shifts.length).toBe(1);
+    expect(shifts[0].currentVolunteers).toBe(2);
+  });
+
+  it("does not materialize a shift when the signup is rejected on eligibility", async () => {
+    const locId = await makeLocation();
+    const templateId = await makeTemplate(locId, { minAge: 21 });
+    // Volunteer born 2010 — under 21 at the shift's start.
+    const res = await post("/volunteers").send({
+      firstName: "Young",
+      lastName: "Volunteer",
+      address: "123 Test St",
+      dateOfBirth: "2010-01-01",
+      email: "young@example.com",
+      phone: "555-0100",
+      emergencyContact: { name: "EC", phone: "555-0199", relationship: "parent" },
+      createdBy: "admin",
+    });
+    const volId = res.body._id;
+
+    const signup = await post("/signups").send({
+      volunteerId: volId,
+      templateId,
+      recurrenceId: "2026-10-07T09:00:00Z",
+      createdBy: "admin",
+    });
+    expect(signup.status).toBe(400);
+    // Rejected request must not leave an orphaned occurrence row behind.
+    expect(await ShiftModel.countDocuments({ templateId })).toBe(0);
+  });
+
+  it("rejects a recurrenceId that is not an occurrence of the series", async () => {
+    const locId = await makeLocation();
+    const volId = await makeVolunteer();
+    const templateId = await makeTemplate(locId);
+
+    const res = await post("/signups").send({
+      volunteerId: volId,
+      templateId,
+      recurrenceId: "2026-10-08T09:00:00Z", // Thursday — not a Mon/Wed slot
+      createdBy: "admin",
+    });
+    expect(res.status).toBe(400);
+    expect(await ShiftModel.countDocuments({ templateId })).toBe(0);
+  });
+
+  it("rejects providing both shiftId and a recurrence occurrence", async () => {
+    const locId = await makeLocation();
+    const volId = await makeVolunteer();
+    const shiftId = await makeShift(locId);
+    const templateId = await makeTemplate(locId);
+
+    const res = await post("/signups").send({
+      volunteerId: volId,
+      shiftId,
+      templateId,
+      recurrenceId: "2026-10-07T09:00:00Z",
+      createdBy: "admin",
+    });
+    expect(res.status).toBe(400);
   });
 });
 
