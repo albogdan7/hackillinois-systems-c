@@ -3,6 +3,12 @@ import { paginate, PaginationInput } from "../../common/paginate";
 import { EventModel, EVENT_STATUS, CreateEventInput, UpdateEventInput } from "./event-schemas";
 import { ShiftModel } from "../shift/shift-schemas";
 import { SignupModel } from "../signup/signup-schemas";
+import { HostModel } from "../host/host-schemas";
+
+async function assertHostExists(hostId: string) {
+  const host = await HostModel.findById(hostId);
+  if (!host) throw new APIError(404, "HostNotFound", "Host not found");
+}
 
 // Move any published event whose endDate has passed into "completed".
 // Lazy sweep run on reads (no scheduler); a cron could call this directly too.
@@ -30,12 +36,15 @@ export async function getEventById(id: string) {
 }
 
 export async function createEvent(data: CreateEventInput) {
+  await assertHostExists(data.hostId);
   return EventModel.create(data);
 }
 
 export async function updateEvent(id: string, data: UpdateEventInput) {
   const event = await EventModel.findById(id);
   if (!event) throw new APIError(404, "EventNotFound", "Event not found");
+
+  if (data.hostId) await assertHostExists(data.hostId);
 
   const startDate = data.startDate ?? event.startDate;
   const endDate = data.endDate ?? event.endDate;

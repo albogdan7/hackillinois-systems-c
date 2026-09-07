@@ -3,12 +3,24 @@ import { EVENT_STATUS } from "./event-schemas";
 import { SHIFT_STATUS } from "../shift/shift-schemas";
 import { SIGNUP_STATUS } from "../signup/signup-schemas";
 
-const BASE_EVENT = {
+let hostId: string;
+
+beforeEach(async () => {
+  const host = await post("/hosts").send({
+    companyName: "Helping Hands Inc",
+    contact: { name: "Pat Organizer", email: "pat@helpinghands.org", phone: "555-0100" },
+    createdBy: "admin",
+  });
+  hostId = host.body._id;
+});
+
+const baseEvent = () => ({
   name: "Fall Food Drive",
+  hostId,
   startDate: "2026-10-01T00:00:00Z",
   endDate: "2026-10-31T23:59:59Z",
   createdBy: "admin",
-};
+});
 
 describe("GET /events", () => {
   it("returns empty array initially", async () => {
@@ -18,8 +30,8 @@ describe("GET /events", () => {
   });
 
   it("filters by status", async () => {
-    await post("/events").send(BASE_EVENT);
-    await post("/events").send({ ...BASE_EVENT, name: "Event 2", status: EVENT_STATUS.PUBLISHED });
+    await post("/events").send(baseEvent());
+    await post("/events").send({ ...baseEvent(), name: "Event 2", status: EVENT_STATUS.PUBLISHED });
     const res = await get("/events?status=published");
     expect(res.status).toBe(200);
     expect(res.body.events).toHaveLength(1);
@@ -29,15 +41,31 @@ describe("GET /events", () => {
 
 describe("POST /events", () => {
   it("creates an event with default draft status", async () => {
-    const res = await post("/events").send(BASE_EVENT);
+    const res = await post("/events").send(baseEvent());
     expect(res.status).toBe(201);
     expect(res.body.name).toBe("Fall Food Drive");
+    expect(res.body.hostId).toBe(hostId);
     expect(res.body.status).toBe(EVENT_STATUS.DRAFT);
+  });
+
+  it("rejects when hostId is missing", async () => {
+    const { hostId: _omit, ...noHost } = baseEvent();
+    const res = await post("/events").send(noHost);
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects when the host does not exist", async () => {
+    const res = await post("/events").send({
+      ...baseEvent(),
+      hostId: "000000000000000000000000",
+    });
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe("HostNotFound");
   });
 
   it("rejects when endDate is before startDate", async () => {
     const res = await post("/events").send({
-      ...BASE_EVENT,
+      ...baseEvent(),
       startDate: "2026-10-31T00:00:00Z",
       endDate: "2026-10-01T00:00:00Z",
     });
@@ -52,7 +80,7 @@ describe("POST /events", () => {
 
 describe("GET /events/:id", () => {
   it("returns an event by id", async () => {
-    const created = await post("/events").send(BASE_EVENT);
+    const created = await post("/events").send(baseEvent());
     const res = await get(`/events/${created.body._id}`);
     expect(res.status).toBe(200);
     expect(res.body.name).toBe("Fall Food Drive");
@@ -67,7 +95,7 @@ describe("GET /events/:id", () => {
 
 describe("PUT /events/:id/cancel", () => {
   it("cancels an event", async () => {
-    const created = await post("/events").send(BASE_EVENT);
+    const created = await post("/events").send(baseEvent());
     const res = await put(`/events/${created.body._id}/cancel`);
     expect(res.status).toBe(200);
     expect(res.body.status).toBe(EVENT_STATUS.CANCELLED);
@@ -75,7 +103,7 @@ describe("PUT /events/:id/cancel", () => {
   });
 
   it("records cancellation reason and who cancelled", async () => {
-    const created = await post("/events").send(BASE_EVENT);
+    const created = await post("/events").send(baseEvent());
     const res = await put(`/events/${created.body._id}/cancel`).send({
       cancellationReason: "Venue flooded",
       cancelledBy: "organizer",
@@ -86,7 +114,7 @@ describe("PUT /events/:id/cancel", () => {
   });
 
   it("rejects double cancel", async () => {
-    const created = await post("/events").send(BASE_EVENT);
+    const created = await post("/events").send(baseEvent());
     await put(`/events/${created.body._id}/cancel`);
     const res = await put(`/events/${created.body._id}/cancel`);
     expect(res.status).toBe(400);
@@ -99,7 +127,7 @@ describe("PUT /events/:id/cancel", () => {
       address: "123 Test St",
       createdBy: "admin",
     });
-    const event = await post("/events").send(BASE_EVENT);
+    const event = await post("/events").send(baseEvent());
     const shift = await post("/shifts").send({
       title: "Cascade Shift",
       locationId: loc.body._id,
@@ -137,6 +165,7 @@ describe("PUT /events/:id/cancel", () => {
   it("allows cancelling an event that has already completed", async () => {
     const created = await post("/events").send({
       name: "Done Event",
+      hostId,
       startDate: "2020-01-01T00:00:00Z",
       endDate: "2020-12-31T00:00:00Z",
       status: "published",
@@ -153,6 +182,7 @@ describe("Event auto-completion", () => {
   it("auto-completes a published event whose endDate has passed", async () => {
     const created = await post("/events").send({
       name: "Past Event",
+      hostId,
       startDate: "2020-01-01T00:00:00Z",
       endDate: "2020-12-31T00:00:00Z",
       status: "published",
@@ -166,7 +196,7 @@ describe("Event auto-completion", () => {
 
 describe("GET /events/:id/summary", () => {
   it("returns zero stats for an event with no shifts", async () => {
-    const event = await post("/events").send(BASE_EVENT);
+    const event = await post("/events").send(baseEvent());
     const res = await get(`/events/${event.body._id}/summary`);
     expect(res.status).toBe(200);
     expect(res.body.totalShifts).toBe(0);
@@ -178,7 +208,7 @@ describe("GET /events/:id/summary", () => {
 
   it("counts confirmed signups and fill rate", async () => {
     const loc = await post("/locations").send({ name: "Summary Hall", address: "123 Test St", createdBy: "admin" });
-    const event = await post("/events").send(BASE_EVENT);
+    const event = await post("/events").send(baseEvent());
     const locId = loc.body._id;
     const eventId = event.body._id;
 
@@ -223,7 +253,7 @@ describe("GET /events/:id/shifts", () => {
   it("returns shifts belonging to an event", async () => {
     const loc = await post("/locations").send({ name: "Event Hall", address: "123 Test St", createdBy: "admin" });
     const locId = loc.body._id;
-    const event = await post("/events").send(BASE_EVENT);
+    const event = await post("/events").send(baseEvent());
     const eventId = event.body._id;
 
     await post("/shifts").send({
@@ -260,7 +290,7 @@ describe("GET /events/:id/shifts", () => {
 
   it("filters event shifts by status", async () => {
     const loc = await post("/locations").send({ name: "Status Hall", address: "123 Test St", createdBy: "admin" });
-    const event = await post("/events").send(BASE_EVENT);
+    const event = await post("/events").send(baseEvent());
     const locId = loc.body._id;
     const eventId = event.body._id;
 
@@ -293,7 +323,7 @@ describe("GET /events/:id/shifts", () => {
 
 describe("DELETE /events/:id", () => {
   it("deletes an event", async () => {
-    const created = await post("/events").send(BASE_EVENT);
+    const created = await post("/events").send(baseEvent());
     const res = await del(`/events/${created.body._id}`);
     expect(res.status).toBe(204);
     const check = await get(`/events/${created.body._id}`);

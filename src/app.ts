@@ -4,6 +4,7 @@ import swaggerUi from "swagger-ui-express";
 import { errorHandler } from "./common/errors";
 import { generateOpenAPIDocument } from "./common/openapi";
 import locationRouter from "./services/location/location-router";
+import hostRouter from "./services/host/host-router";
 import eventRouter from "./services/event/event-router";
 import volunteerRouter from "./services/volunteer/volunteer-router";
 import shiftRouter from "./services/shift/shift-router";
@@ -28,6 +29,7 @@ app.use("/docs", swaggerUi.serve, swaggerUi.setup(openAPIDocument));
 app.get("/docs.json", (_req, res) => res.json(openAPIDocument));
 
 app.use("/locations", locationRouter);
+app.use("/hosts", hostRouter);
 app.use("/events", eventRouter);
 app.use("/volunteers", volunteerRouter);
 app.use("/shifts", shiftRouter);

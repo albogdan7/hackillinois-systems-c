@@ -8,7 +8,8 @@ We have intentionally given you few details -- we want to see that you can think
 
 ## Features & Ideas
 
-- **Full CRUD** for volunteers, locations, events, shifts, signups, and recurring shift templates.
+- **Full CRUD** for hosts, volunteers, locations, events, shifts, signups, and recurring shift templates.
+- **Hosts own events** — each event belongs to a host (the organization running it), with an endpoint to list a host's events. Notes: This was made because a single organization (e.g. HackIllinois) may run many distinct events, and admins want to see all events tied to a given host.
 - **Events group shifts** with summary stats (fill rate, signup counts, total volunteer hours) and auto-complete once their end date passes. Notes: This was made because an event (e.g. HackIllinois 2027) may have tons of shifts that are a part of it. Admins can then see overall statistics on how the volunteering for this event is doing. 
 - **Shift capacity** with optional caps (`maxVolunteers`). Uncapped shifts never fill, and capped shifts can't exceed their location's capacity. Notes: This was made because a shift (e.g. HackIllinois 2027 Shirt Distribution) may have a capacity for how many people are needed, and the location (e.g. Siebel 1st Floor) may have regulations on how many people can be there. This is an optional parameter because some events (e.g. cleaning up litter in NYC) do not have a realistic capacity that needs to be enforced. 
 - **Signup eligibility checks** on create: required-skill matching, an age gate (`minAge` vs. the volunteer's age at shift start), and capacity. Notes: Some shifts will need some kind of validity with a certification or skills that the person needs to have (e.g. CPR certification). Age may also be a requirement, as some events need adults rather than kids. I thought it would make a lot of sense that some shifts have requirements to sign-up so that people who do not match the criteria accidentally join. 
@@ -49,7 +50,7 @@ npm test
 
 ## Database Schema
 
-![Database schema diagram](image.png)
+See [db_schema.pdf](db_schema.pdf) for the full entity-relationship diagram.
 
 ## Project Structure
 
@@ -66,6 +67,7 @@ src/
 ├── server.ts         # Entry point — connects to MongoDB and starts the server
 ├── common/           # Shared infra: db, errors, pagination, OpenAPI, shared schemas, test setup
 └── services/          # One folder per domain, each mounted under /<name>
+    ├── host/         # Hosts (organizations running events) — CRUD, plus list a host's events
     ├── location/     # Physical locations — CRUD
     ├── volunteer/    # Volunteers — CRUD, plus per-volunteer signups, logged hours, and a leaderboard
     ├── event/        # Events (groups of shifts) — CRUD, cancel, summary stats, list shifts
@@ -86,6 +88,16 @@ Interactive docs are available at `http://localhost:3000/docs` (Swagger UI). Lis
 | POST | `/locations` | Create a location |
 | PUT | `/locations/:id` | Update a location |
 | DELETE | `/locations/:id` | Delete a location |
+
+### Hosts (`/hosts`)
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/hosts` | List hosts |
+| GET | `/hosts/:id` | Get a host |
+| GET | `/hosts/:id/events` | List a host's events |
+| POST | `/hosts` | Create a host |
+| PUT | `/hosts/:id` | Update a host |
+| DELETE | `/hosts/:id` | Delete a host |
 
 ### Volunteers (`/volunteers`)
 | Method | Path | Description |
