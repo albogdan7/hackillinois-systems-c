@@ -13,6 +13,11 @@ import signupRouter from "./services/signup/signup-router";
 
 export const app = express();
 
+// Use the simple query parser (not qs) so nested/bracket query params like
+// ?status[$ne]=x arrive as plain strings, not objects — preventing NoSQL
+// operator injection where list filters flow into Mongoose queries.
+app.set("query parser", "simple");
+
 app.use(express.json());
 
 if (process.env.NODE_ENV !== "test") {

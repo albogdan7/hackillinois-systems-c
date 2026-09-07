@@ -117,6 +117,14 @@ const ShiftResponse = registry.register(
       locationId: ObjectId,
       eventId: ObjectId.optional(),
       templateId: ObjectId.optional(),
+      recurrenceId: z.string().optional().openapi({
+        example: "2026-10-10T09:00:00.000Z",
+        description: "Original start of the recurrence slot this shift materializes",
+      }),
+      detached: z.boolean().openapi({
+        example: false,
+        description: "true once individually edited; excluded from series-wide updates",
+      }),
       startTime: z.string().openapi({ example: "2026-10-10T09:00:00.000Z" }),
       endTime: z.string().openapi({ example: "2026-10-10T12:00:00.000Z" }),
       maxVolunteers: z.number().openapi({ example: 5 }),
@@ -137,6 +145,17 @@ const ShiftWithCountsResponse = registry.register(
   })
 );
 
+const RecurrenceRuleInput = z.object({
+  frequency: z.enum(["daily", "weekly", "monthly"]),
+  interval: z.number().optional().openapi({ example: 1 }),
+  daysOfWeek: z
+    .array(z.number())
+    .optional()
+    .openapi({ example: [1, 3], description: "0=Sun, 6=Sat" }),
+  endDate: z.string().optional(),
+  occurrences: z.number().optional().openapi({ example: 4, description: "endDate or occurrences required" }),
+});
+
 const ShiftTemplateResponse = registry.register(
   "ShiftTemplate",
   z
@@ -146,25 +165,43 @@ const ShiftTemplateResponse = registry.register(
       description: z.string().optional(),
       locationId: ObjectId,
       eventId: ObjectId.optional(),
-      startDate: z.string().openapi({ example: "2026-10-06T00:00:00.000Z" }),
-      startTimeOfDay: z.string().openapi({ example: "09:00" }),
-      durationMinutes: z.number().openapi({ example: 180 }),
-      maxVolunteers: z.number().openapi({ example: 3 }),
+      startTime: z.string().openapi({ example: "2026-10-06T09:00:00.000Z" }),
+      endTime: z.string().openapi({ example: "2026-10-06T12:00:00.000Z" }),
+      maxVolunteers: z.number().optional().openapi({ example: 3 }),
+      minAge: z.number().optional(),
       requiredSkills: z.array(z.enum(SKILLS)).optional(),
-      recurrenceRule: z.object({
-        frequency: z.enum(["daily", "weekly", "monthly"]),
-        interval: z.number().openapi({ example: 1 }),
-        daysOfWeek: z
-          .array(z.number())
-          .optional()
-          .openapi({ example: [1, 3] }),
-        endDate: z.string().optional(),
-        occurrences: z.number().optional().openapi({ example: 8 }),
-      }),
+      recurrenceRule: RecurrenceRuleInput,
       createdBy: z.string().openapi({ example: "admin" }),
       updatedBy: z.string().optional(),
     })
     .merge(Timestamps)
+);
+
+const OccurrenceResponse = registry.register(
+  "Occurrence",
+  z.object({
+    seriesId: ObjectId,
+    recurrenceId: z.string().openapi({
+      example: "2026-10-07T09:00:00.000Z",
+      description: "Original slot start — the stable occurrence key",
+    }),
+    startTime: z.string().openapi({ example: "2026-10-07T09:00:00.000Z" }),
+    endTime: z.string().openapi({ example: "2026-10-07T12:00:00.000Z" }),
+    title: z.string().openapi({ example: "Weekly Desk" }),
+    description: z.string().optional(),
+    locationId: ObjectId,
+    eventId: ObjectId.optional(),
+    maxVolunteers: z.number().optional().openapi({ example: 3 }),
+    minAge: z.number().optional(),
+    requiredSkills: z.array(z.enum(SKILLS)).optional(),
+    status: z.string().openapi({ example: "published" }),
+    currentVolunteers: z.number().openapi({ example: 0 }),
+    concrete: z.boolean().openapi({
+      example: false,
+      description: "true if backed by a real Shift row (signed up for or edited)",
+    }),
+    shiftId: ObjectId.optional().openapi({ description: "Present only when concrete" }),
+  })
 );
 
 const SignupResponse = registry.register(
@@ -666,6 +703,30 @@ registry.registerPath({
 });
 
 registry.registerPath({
+  method: "get",
+  path: "/shifts/calendar",
+  tags: ["Shifts"],
+  summary: "Whole-schedule calendar over a date range",
+  description:
+    "Merges standalone shifts with every series' occurrences (virtual + materialized) within [from, to], sorted by start. Unlike GET /shifts (concrete rows only), this surfaces recurring occurrences that have no row yet. Range is required and capped at 366 days.",
+  request: {
+    query: z.object({
+      from: z.string().datetime().openapi({ example: "2026-10-01T00:00:00Z" }),
+      to: z.string().datetime().openapi({ example: "2026-10-31T23:59:59Z" }),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Occurrences in range",
+      content: {
+        "application/json": { schema: z.object({ occurrences: z.array(OccurrenceResponse) }) },
+      },
+    },
+    400: COMMON_ERRORS[400],
+  },
+});
+
+registry.registerPath({
   method: "post",
   path: "/shifts",
   tags: ["Shifts"],
@@ -828,7 +889,9 @@ registry.registerPath({
   method: "post",
   path: "/shift-templates",
   tags: ["Shift Templates"],
-  summary: "Create a shift template and auto-generate recurring shift instances",
+  summary: "Create a recurring shift template",
+  description:
+    "Defines a recurring shift. Occurrences are virtual (expanded from the rule on read via GET /shift-templates/{id}/occurrences) and materialize into real shifts only when signed up for or individually edited.",
   request: {
     body: {
       content: {
@@ -838,24 +901,12 @@ registry.registerPath({
             description: z.string().optional(),
             locationId: ObjectId,
             eventId: ObjectId.optional(),
-            startDate: z.string().openapi({ example: "2026-10-06T00:00:00Z" }),
-            startTimeOfDay: z.string().openapi({ example: "09:00", description: "HH:MM format" }),
-            durationMinutes: z.number().openapi({ example: 180 }),
+            startTime: z.string().openapi({ example: "2026-10-06T09:00:00Z" }),
+            endTime: z.string().openapi({ example: "2026-10-06T12:00:00Z" }),
             maxVolunteers: z.number().openapi({ example: 3 }),
+            minAge: z.number().optional(),
             requiredSkills: z.array(z.enum(SKILLS)).optional(),
-            recurrenceRule: z.object({
-              frequency: z.enum(["daily", "weekly", "monthly"]),
-              interval: z.number().optional().openapi({ example: 1 }),
-              daysOfWeek: z
-                .array(z.number())
-                .optional()
-                .openapi({ example: [1, 3], description: "0=Sun, 6=Sat" }),
-              endDate: z.string().optional(),
-              occurrences: z
-                .number()
-                .optional()
-                .openapi({ example: 8, description: "endDate or occurrences required" }),
-            }),
+            recurrenceRule: RecurrenceRuleInput,
             createdBy: z.string().openapi({ example: "admin" }),
           }),
         },
@@ -887,10 +938,40 @@ registry.registerPath({
 });
 
 registry.registerPath({
+  method: "get",
+  path: "/shift-templates/{id}/occurrences",
+  tags: ["Shift Templates"],
+  summary: "Expand a series into occurrences over a date range",
+  description:
+    "Returns the series' occurrences within [from, to]. Occurrences are virtual (computed from the recurrence rule) unless a volunteer signed up or the occurrence was individually edited, in which case the concrete shift is returned. The range is required and capped at 366 days.",
+  request: {
+    params: z.object({ id: ObjectId }),
+    query: z.object({
+      from: z.string().datetime().openapi({ example: "2026-10-01T00:00:00Z" }),
+      to: z.string().datetime().openapi({ example: "2026-10-31T23:59:59Z" }),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Occurrences in range",
+      content: {
+        "application/json": {
+          schema: z.object({ occurrences: z.array(OccurrenceResponse) }),
+        },
+      },
+    },
+    400: COMMON_ERRORS[400],
+    404: COMMON_ERRORS[404],
+  },
+});
+
+registry.registerPath({
   method: "put",
   path: "/shift-templates/{id}",
   tags: ["Shift Templates"],
-  summary: "Update a shift template (does not regenerate shifts)",
+  summary: "Edit the whole series",
+  description:
+    "Field changes (title, description, maxVolunteers, minAge, requiredSkills) propagate to virtual occurrences and to materialized-but-not-detached shifts. Changing the recurrenceRule is a schedule change and is rejected with 409 once any occurrence has materialized — split the series instead.",
   request: {
     params: z.object({ id: ObjectId }),
     body: {
@@ -899,10 +980,10 @@ registry.registerPath({
           schema: z.object({
             title: z.string().optional(),
             description: z.string().optional(),
-            locationId: ObjectId.optional(),
-            eventId: ObjectId.optional(),
             maxVolunteers: z.number().optional(),
+            minAge: z.number().optional(),
             requiredSkills: z.array(z.enum(SKILLS)).optional(),
+            recurrenceRule: RecurrenceRuleInput.optional(),
             updatedBy: z.string().optional(),
           }),
         },
@@ -919,10 +1000,81 @@ registry.registerPath({
 });
 
 registry.registerPath({
+  method: "put",
+  path: "/shift-templates/{id}/occurrences",
+  tags: ["Shift Templates"],
+  summary: "Edit a single occurrence (this occurrence only)",
+  description:
+    "Materializes the occurrence identified by recurrenceId (idempotent) and detaches it, so later series-wide edits leave it alone, then applies the field changes.",
+  request: {
+    params: z.object({ id: ObjectId }),
+    body: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            recurrenceId: z.string().datetime(),
+            title: z.string().optional(),
+            description: z.string().optional(),
+            startTime: z.string().datetime().optional(),
+            endTime: z.string().datetime().optional(),
+            maxVolunteers: z.number().optional(),
+            minAge: z.number().optional(),
+            requiredSkills: z.array(z.enum(SKILLS)).optional(),
+            updatedBy: z.string().optional(),
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: { description: "Edited occurrence", content: { "application/json": { schema: ShiftResponse } } },
+    ...COMMON_ERRORS,
+  },
+});
+
+registry.registerPath({
+  method: "put",
+  path: "/shift-templates/{id}/split",
+  tags: ["Shift Templates"],
+  summary: "Split the series at an occurrence (this and following)",
+  description:
+    "Splits at splitAt (an occurrence slot): the original series keeps the occurrences before it, a new series carries the rest with the given field changes. Materialized occurrences at/after the split move to the new series. The rule shape is preserved across the split.",
+  request: {
+    params: z.object({ id: ObjectId }),
+    body: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            splitAt: z.string().datetime(),
+            title: z.string().optional(),
+            description: z.string().optional(),
+            maxVolunteers: z.number().optional(),
+            minAge: z.number().optional(),
+            requiredSkills: z.array(z.enum(SKILLS)).optional(),
+            createdBy: z.string().optional(),
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Split result",
+      content: {
+        "application/json": {
+          schema: z.object({ original: ShiftTemplateResponse, series: ShiftTemplateResponse }),
+        },
+      },
+    },
+    ...COMMON_ERRORS,
+  },
+});
+
+registry.registerPath({
   method: "delete",
   path: "/shift-templates/{id}",
   tags: ["Shift Templates"],
-  summary: "Delete a template — nullifies templateId on generated shifts, does not delete them",
+  summary: "Delete a template — materialized shifts are kept (detached), not deleted",
   request: { params: z.object({ id: ObjectId }) },
   responses: { 204: { description: "Deleted" }, 404: COMMON_ERRORS[404] },
 });
@@ -957,16 +1109,19 @@ registry.registerPath({
   method: "post",
   path: "/signups",
   tags: ["Signups"],
-  summary: "Sign a volunteer up for a shift",
+  summary: "Sign a volunteer up for a shift or recurrence occurrence",
   description:
-    "Enforces: shift must be published, no duplicate signup, volunteer must have required skills, no overlapping confirmed shifts. Status is 'confirmed' if spots available, 'waitlisted' if at capacity.",
+    "Target either an existing shift (`shiftId`) or a virtual recurrence occurrence (`templateId` + `recurrenceId`, the occurrence's original start), which is materialized into a real shift before signup. Provide exactly one of the two forms. Enforces: shift must be published, no duplicate signup, volunteer must have required skills, no overlapping confirmed shifts. Status is 'confirmed' if spots available, 'waitlisted' if at capacity.",
   request: {
     body: {
       content: {
         "application/json": {
           schema: z.object({
             volunteerId: ObjectId,
-            shiftId: ObjectId,
+            shiftId: ObjectId.optional(),
+            templateId: ObjectId.optional(),
+            recurrenceId: z.string().datetime().optional(),
+            createdBy: z.string(),
           }),
         },
       },

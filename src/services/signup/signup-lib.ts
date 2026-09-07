@@ -1,8 +1,10 @@
+import mongoose from "mongoose";
 import { APIError } from "../../common/errors";
 import { paginate, PaginationInput } from "../../common/paginate";
 import { SignupModel, SignupStatus, CreateSignupInput } from "./signup-schemas";
 import { VolunteerModel } from "../volunteer/volunteer-schemas";
 import { ShiftModel } from "../shift/shift-schemas";
+import { assertOccurrence, materializeOccurrence } from "../shift-template/shift-template-lib";
 
 // Full years old on a given reference date
 function ageAt(dateOfBirth: Date, at: Date): number {
@@ -43,19 +45,63 @@ export async function createSignup(data: CreateSignupInput) {
   const volunteer = await VolunteerModel.findById(data.volunteerId);
   if (!volunteer) throw new APIError(404, "VolunteerNotFound", "Volunteer not found");
 
-  const shift = await ShiftModel.findById(data.shiftId);
-  if (!shift) throw new APIError(404, "ShiftNotFound", "Shift not found");
+  // Resolve the target WITHOUT creating anything yet. For a virtual recurrence
+  // occurrence we validate against the series' defaults, so a signup rejected on
+  // skills/age/overlap never leaves an orphaned materialized shift behind. The
+  // row is created only after every check passes (below).
+  let shift: {
+    _id?: mongoose.Types.ObjectId;
+    startTime: Date;
+    endTime: Date;
+    requiredSkills?: string[];
+    minAge?: number;
+    maxVolunteers?: number;
+    currentVolunteers?: number;
+    status: string;
+  };
+
+  if (data.shiftId) {
+    const found = await ShiftModel.findById(data.shiftId);
+    if (!found) throw new APIError(404, "ShiftNotFound", "Shift not found");
+    shift = found;
+  } else {
+    const series = await assertOccurrence(data.templateId!, data.recurrenceId!);
+    const existing = await ShiftModel.findOne({
+      templateId: series._id,
+      recurrenceId: data.recurrenceId,
+    });
+    if (existing) {
+      shift = existing;
+    } else {
+      // Virtual occurrence — synthesize a view from the series defaults.
+      const durationMs = series.endTime.getTime() - series.startTime.getTime();
+      shift = {
+        startTime: data.recurrenceId!,
+        endTime: new Date(data.recurrenceId!.getTime() + durationMs),
+        requiredSkills: series.requiredSkills,
+        minAge: series.minAge,
+        maxVolunteers: series.maxVolunteers,
+        currentVolunteers: 0,
+        status: "published",
+      };
+    }
+  }
+
   if (shift.status !== "published") {
     throw new APIError(400, "ShiftNotAvailable", "Shift is not published and open for signup");
   }
 
-  const existing = await SignupModel.findOne({
-    volunteerId: data.volunteerId,
-    shiftId: data.shiftId,
-    status: { $in: ["confirmed", "waitlisted"] },
-  });
-  if (existing) {
-    throw new APIError(409, "AlreadySignedUp", "Volunteer is already signed up for this shift");
+  // Duplicate check applies only to an existing concrete shift; a not-yet-
+  // materialized occurrence can't have any signups.
+  if (shift._id) {
+    const existing = await SignupModel.findOne({
+      volunteerId: data.volunteerId,
+      shiftId: shift._id,
+      status: { $in: ["confirmed", "waitlisted"] },
+    });
+    if (existing) {
+      throw new APIError(409, "AlreadySignedUp", "Volunteer is already signed up for this shift");
+    }
   }
 
   if (shift.requiredSkills?.length) {
@@ -106,9 +152,19 @@ export async function createSignup(data: CreateSignupInput) {
       ? "confirmed"
       : "waitlisted";
 
-  const signup = await SignupModel.create({ ...data, status });
+  // All checks passed — now ensure the occurrence is a real row (idempotent).
+  const shiftId = shift._id
+    ? shift._id.toString()
+    : (await materializeOccurrence(data.templateId!, data.recurrenceId!))._id.toString();
+
+  const signup = await SignupModel.create({
+    volunteerId: data.volunteerId,
+    shiftId,
+    createdBy: data.createdBy,
+    status,
+  });
   if (status === "confirmed") {
-    await ShiftModel.findByIdAndUpdate(data.shiftId, { $inc: { currentVolunteers: 1 } });
+    await ShiftModel.findByIdAndUpdate(shiftId, { $inc: { currentVolunteers: 1 } });
   }
   return signup;
 }

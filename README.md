@@ -1,5 +1,5 @@
-# hackillinois-systems-c
-**HackIllinois 2027 Systems Coding Challenge** by Albert Bogdan from 9/4 - 9/8
+# hackillinois-systems-challenge
+**HackIllinois 2027 Systems Coding Challenge** by Albert Bogdan from 9/4/2026 - 9/8/2026
 
 **Prompt:**
 Using TypeScript, Express, and MongoDB, implement a volunteer backend API for creating/managing volunteer shift signups. The goal is to demonstrate your understanding of API design, database modeling, and TypeScript fundamentals. 
@@ -17,7 +17,7 @@ We have intentionally given you few details -- we want to see that you can think
 - **Signup lifecycle** via a validated status state machine — confirm/waitlist, cancel, check-in/check-out, and no-show marking. Notes: This matches the typical clock-in cycle of a person. 
 - **Volunteer hours** computed from check-in/check-out times, exposed per volunteer and via a leaderboard. Notes: People who need volunteer hours for a certain task can easily access their total count. 
 - **Cascading cancellation** — cancelling an event cancels its shifts and their signups; cancelling a shift cancels its signups. Notes: If a real-life event is canceled (e.g. HackIllinois 2027) (hopefully not), there should not be any other shifts that take place that are tied to the event. 
-- **Recurring shifts** generated from template recurrence rules (daily/weekly/monthly with interval and days-of-week). Notes: This table exists in case an event happens repeatedly (e.g. Monday Soup Kitchen 7-8pm), so that each shift can be auto-generated for this. 
+- **Recurring shifts** defined by template recurrence rules (daily/weekly/monthly with interval and days-of-week), expanded to occurrences on read and materialized into real shifts only when signed up for or individually edited — a Google Calendar–style model (see [How recurring shifts work](#how-recurring-shifts-work)). Notes: This exists in case an event happens repeatedly (e.g. Monday Soup Kitchen 7-8pm). Occurrences stay virtual until they're acted on, so editing the series vs. a single occurrence behaves like a calendar app. 
 - **Validation & pagination** everywhere via Zod schemas, with a shared pagination helper on all list endpoints.
 - **OpenAPI/Swagger docs** served at `/docs`, and an **in-memory MongoDB** test suite that needs no external database.
 
@@ -53,6 +53,22 @@ npm test
 ![Database schema diagram](db_schema_page2.png)
 
 See [db_schema.pdf](db_schema.pdf) for the full entity-relationship diagram.
+
+## How recurring shifts work
+
+A recurring shift is stored as **one rule** (a shift template), not many rows. Occurrences are **virtual** — computed from the rule on read — and only become real `Shift` rows when someone acts on one (signs up, or edits that occurrence). This mirrors the Google Calendar / iCalendar model, and it's what makes "edit this occurrence" vs. "edit the whole series" behave sanely.
+
+- **View** — `GET /shift-templates/:id/occurrences?from&to` expands one series; `GET /shifts/calendar?from&to` expands every series plus standalone shifts into one schedule.
+- **Materialize** — the first signup (or single-occurrence edit) creates the row, keyed by `(templateId, recurrenceId)`, where `recurrenceId` is the occurrence's **original start time** — the stable id, so an occurrence that's later moved still maps back to its slot.
+- **Edit one** (`PUT …/:id/occurrences`) — materializes the occurrence and marks it `detached`, so it keeps its own change.
+- **Edit all** (`PUT /shift-templates/:id`) — updates the series; virtual occurrences recompute for free and non-detached rows follow, while detached ones keep their edits. Changing the *schedule* (recurrence rule) is rejected (409) once occurrences exist — split instead.
+- **This and following** (`PUT …/:id/split`) — ends the series at a chosen occurrence and starts a new series for the rest.
+
+Series are always bounded (the rule requires an `endDate` or an `occurrences` count), and occurrence queries are capped at a 366-day window. Run the whole lifecycle end-to-end against an in-memory DB with:
+
+```bash
+npx ts-node scripts/recurring-demo.ts
+```
 
 ## Project Structure
 
@@ -128,7 +144,8 @@ Interactive docs are available at `http://localhost:3000/docs` (Swagger UI). Lis
 ### Shifts (`/shifts`)
 | Method | Path | Description |
 | --- | --- | --- |
-| GET | `/shifts` | List shifts |
+| GET | `/shifts` | List shifts (concrete rows only) |
+| GET | `/shifts/calendar?from&to` | Whole-schedule calendar: standalone shifts + all series' occurrences (virtual + materialized), merged |
 | GET | `/shifts/:id` | Get a shift (with signup counts) |
 | GET | `/shifts/:id/signups` | List a shift's signups |
 | POST | `/shifts` | Create a shift |
@@ -143,17 +160,23 @@ Interactive docs are available at `http://localhost:3000/docs` (Swagger UI). Lis
 | GET | `/signups` | List signups |
 | GET | `/signups/:id` | Get a signup |
 | POST | `/signups` | Create a signup (confirmed, or waitlisted if full) |
+| POST | `/signups` | Create a signup — target a `shiftId`, or a recurrence occurrence via `templateId` + `recurrenceId` (materialized on signup) |
 | PUT | `/signups/:id/cancel` | Cancel a signup (promotes next waitlisted) |
 | PUT | `/signups/:id/checkin` | Check in |
 | PUT | `/signups/:id/checkout` | Check out |
 | PUT | `/signups/:id/status` | Update signup status |
 
 ### Shift Templates (`/shift-templates`)
+Recurring shifts follow a Google Calendar–style model — see [How recurring shifts work](#how-recurring-shifts-work).
+
 | Method | Path | Description |
 | --- | --- | --- |
 | GET | `/shift-templates` | List templates |
 | GET | `/shift-templates/:id` | Get a template |
-| POST | `/shift-templates` | Create a template (generates shifts from its recurrence rule) |
-| PUT | `/shift-templates/:id` | Update a template |
-| DELETE | `/shift-templates/:id` | Delete a template |
+| GET | `/shift-templates/:id/occurrences?from&to` | Expand a series into occurrences over a date range (virtual + materialized) |
+| POST | `/shift-templates` | Create a recurring shift template |
+| PUT | `/shift-templates/:id` | Edit the whole series — field changes propagate; a schedule (rule) change is rejected (409) once occurrences exist |
+| PUT | `/shift-templates/:id/occurrences` | Edit one occurrence (by `recurrenceId`) — materializes + detaches it |
+| PUT | `/shift-templates/:id/split` | Split "this and following" at an occurrence into a new series |
+| DELETE | `/shift-templates/:id` | Delete a template (materialized shifts are kept, detached) |
 

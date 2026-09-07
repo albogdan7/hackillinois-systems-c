@@ -22,7 +22,6 @@ export interface IShiftTemplate {
   minAge?: number;
   requiredSkills?: string[];
   recurrenceRule: IRecurrenceRule;
-  generatedUntil?: Date;
   createdBy: string;
 }
 
@@ -49,7 +48,6 @@ const ShiftTemplateSchema = new mongoose.Schema<IShiftTemplate>(
     minAge: { type: Number, min: 0 },
     requiredSkills: [{ type: String, enum: SKILLS }],
     recurrenceRule: { type: RecurrenceRuleSchema, required: true },
-    generatedUntil: { type: Date },
     createdBy: { type: String, required: true },
   },
   { timestamps: true }
@@ -80,9 +78,47 @@ export const CreateShiftTemplateSchema = ShiftShapeSchema.extend({
   path: ["endTime"],
 });
 
+// "Edit the whole series." Field changes always apply; a recurrenceRule change
+// is a schedule change and is only accepted while the series has no materialized
+// occurrences (enforced in the lib) — otherwise callers must split instead.
 export const UpdateShiftTemplateSchema = z.object({
+  title: z.string().min(1).optional(),
+  description: z.string().optional(),
+  maxVolunteers: z.number().int().min(1).optional(),
+  minAge: z.number().int().min(0).optional(),
+  requiredSkills: z.array(z.enum(SKILLS)).optional(),
   recurrenceRule: RecurrenceRuleZodSchema.optional(),
+  updatedBy: z.string().min(1).optional(),
+});
+
+// "Edit just this occurrence." Identified by its recurrence slot; materializes
+// and detaches the occurrence, then applies the changes.
+export const EditOccurrenceSchema = z.object({
+  recurrenceId: z.coerce.date(),
+  title: z.string().min(1).optional(),
+  description: z.string().optional(),
+  startTime: z.coerce.date().optional(),
+  endTime: z.coerce.date().optional(),
+  maxVolunteers: z.number().int().min(1).optional(),
+  minAge: z.number().int().min(0).optional(),
+  requiredSkills: z.array(z.enum(SKILLS)).optional(),
+  updatedBy: z.string().min(1).optional(),
+});
+
+// "This and following." Splits the series at an occurrence slot: the original
+// series keeps everything before it, a new series carries the rest with the
+// given field changes.
+export const SplitSeriesSchema = z.object({
+  splitAt: z.coerce.date(),
+  title: z.string().min(1).optional(),
+  description: z.string().optional(),
+  maxVolunteers: z.number().int().min(1).optional(),
+  minAge: z.number().int().min(0).optional(),
+  requiredSkills: z.array(z.enum(SKILLS)).optional(),
+  createdBy: z.string().min(1).optional(),
 });
 
 export type CreateShiftTemplateInput = z.infer<typeof CreateShiftTemplateSchema>;
 export type UpdateShiftTemplateInput = z.infer<typeof UpdateShiftTemplateSchema>;
+export type EditOccurrenceInput = z.infer<typeof EditOccurrenceSchema>;
+export type SplitSeriesInput = z.infer<typeof SplitSeriesSchema>;

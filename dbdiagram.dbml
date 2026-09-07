@@ -61,9 +61,9 @@ Table ShiftTemplate {
   minAge number
   requiredSkills string[]
   recurrenceRule object [not null, note: 'frequency, interval, daysOfWeek, endDate, occurrences']
-  generatedUntil datetime
   createdBy string [not null]
   updatedBy string
+  Note: 'A recurring shift definition. Occurrences are virtual (expanded from the rule on read); a Shift row is created only when an occurrence is signed up for or individually edited.'
 }
 
 Table Shift {
@@ -72,7 +72,9 @@ Table Shift {
   description string
   locationId ObjectId [not null, ref: > Location._id]
   eventId ObjectId [ref: > Event._id]
-  templateId ObjectId [ref: > ShiftTemplate._id]
+  templateId ObjectId [ref: > ShiftTemplate._id, note: 'set when materialized from a series']
+  recurrenceId datetime [note: 'original slot start; unique per (templateId, recurrenceId)']
+  detached boolean [not null, note: 'true once individually edited; excluded from series-wide updates']
   startTime datetime [not null]
   endTime datetime [not null]
   maxVolunteers number [note: 'null = uncapped / unlimited']
@@ -85,6 +87,10 @@ Table Shift {
   cancelledBy string
   createdBy string [not null]
   updatedBy string
+
+  Indexes {
+    (templateId, recurrenceId) [unique, note: 'partial: only when both set — one row per occurrence slot']
+  }
 }
 
 Table Signup {
