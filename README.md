@@ -17,7 +17,7 @@ We have intentionally given you few details -- we want to see that you can think
 - **Signup lifecycle** via a validated status state machine — confirm/waitlist, cancel, check-in/check-out, and no-show marking. Notes: This matches the typical clock-in cycle of a person. 
 - **Volunteer hours** computed from check-in/check-out times, exposed per volunteer and via a leaderboard. Notes: People who need volunteer hours for a certain task can easily access their total count. 
 - **Cascading cancellation** — cancelling an event cancels its shifts and their signups; cancelling a shift cancels its signups. Notes: If a real-life event is canceled (e.g. HackIllinois 2027) (hopefully not), there should not be any other shifts that take place that are tied to the event. 
-- **Recurring shifts** defined by template recurrence rules (daily/weekly/monthly with interval and days-of-week), expanded to occurrences on read and materialized into real shifts only when signed up for or individually edited — a Google Calendar–style model (see [DESIGN.md](DESIGN.md)). Notes: This exists in case an event happens repeatedly (e.g. Monday Soup Kitchen 7-8pm). Occurrences stay virtual until they're acted on, so editing the series vs. a single occurrence behaves like a calendar app. 
+- **Recurring shifts** defined by template recurrence rules (daily/weekly/monthly with interval and days-of-week), expanded to occurrences on read and materialized into real shifts only when signed up for or individually edited — a Google Calendar–style model (see [How recurring shifts work](#how-recurring-shifts-work)). Notes: This exists in case an event happens repeatedly (e.g. Monday Soup Kitchen 7-8pm). Occurrences stay virtual until they're acted on, so editing the series vs. a single occurrence behaves like a calendar app. 
 - **Validation & pagination** everywhere via Zod schemas, with a shared pagination helper on all list endpoints.
 - **OpenAPI/Swagger docs** served at `/docs`, and an **in-memory MongoDB** test suite that needs no external database.
 
@@ -53,6 +53,22 @@ npm test
 ![Database schema diagram](db_schema_page2.png)
 
 See [db_schema.pdf](db_schema.pdf) for the full entity-relationship diagram.
+
+## How recurring shifts work
+
+A recurring shift is stored as **one rule** (a shift template), not many rows. Occurrences are **virtual** — computed from the rule on read — and only become real `Shift` rows when someone acts on one (signs up, or edits that occurrence). This mirrors the Google Calendar / iCalendar model, and it's what makes "edit this occurrence" vs. "edit the whole series" behave sanely.
+
+- **View** — `GET /shift-templates/:id/occurrences?from&to` expands one series; `GET /shifts/calendar?from&to` expands every series plus standalone shifts into one schedule.
+- **Materialize** — the first signup (or single-occurrence edit) creates the row, keyed by `(templateId, recurrenceId)`, where `recurrenceId` is the occurrence's **original start time** — the stable id, so an occurrence that's later moved still maps back to its slot.
+- **Edit one** (`PUT …/:id/occurrences`) — materializes the occurrence and marks it `detached`, so it keeps its own change.
+- **Edit all** (`PUT /shift-templates/:id`) — updates the series; virtual occurrences recompute for free and non-detached rows follow, while detached ones keep their edits. Changing the *schedule* (recurrence rule) is rejected (409) once occurrences exist — split instead.
+- **This and following** (`PUT …/:id/split`) — ends the series at a chosen occurrence and starts a new series for the rest.
+
+Series are always bounded (the rule requires an `endDate` or an `occurrences` count), and occurrence queries are capped at a 366-day window. Run the whole lifecycle end-to-end against an in-memory DB with:
+
+```bash
+npx ts-node scripts/recurring-demo.ts
+```
 
 ## Project Structure
 
@@ -151,7 +167,7 @@ Interactive docs are available at `http://localhost:3000/docs` (Swagger UI). Lis
 | PUT | `/signups/:id/status` | Update signup status |
 
 ### Shift Templates (`/shift-templates`)
-Recurring shifts follow a Google Calendar–style model: a template defines the recurrence, and occurrences are **virtual** (expanded from the rule on read) until one is signed up for or individually edited, at which point it materializes into a real shift. See [DESIGN.md](DESIGN.md) for the full design.
+Recurring shifts follow a Google Calendar–style model — see [How recurring shifts work](#how-recurring-shifts-work).
 
 | Method | Path | Description |
 | --- | --- | --- |
