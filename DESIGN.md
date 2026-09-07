@@ -271,11 +271,18 @@ behavioral or design value and real breakage risk. The design uses "series" term
 the code implements it under the original `ShiftTemplate` / `templateId` names. The
 schema fields and index are already named to travel with the rename if it's ever done.
 
+### Global calendar (done)
+
+`GET /shifts/calendar?from&to` surfaces recurring occurrences in a whole-schedule view:
+it expands every series over the window (virtual slots + their materialized overrides)
+and merges in standalone shifts, sorted by start. This is separate from the paginated
+`GET /shifts` (concrete rows only) on purpose — a bounded calendar sidesteps paginating a
+virtual+concrete mix. Reuses `expandSeries`; standalone shifts are mapped into the same
+occurrence shape (no `seriesId`).
+
 ### Still open (future work)
 - **Aggregating over virtual occurrences** in `getEventSummary` / `getEventShifts` (see
   the deferral note above) — unreachable until a series is attached to an event.
-- **`GET /shifts` does not surface virtual occurrences** — only the per-series
-  `/occurrences` endpoint expands them. A global calendar view would merge across series.
 - **Edit-all doesn't re-validate existing signups** against a newly-raised `minAge`.
 
 ### Deferred by design: aggregating over virtual occurrences

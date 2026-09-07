@@ -3,6 +3,7 @@ import { asyncHandler, APIError } from "../../common/errors";
 import { PaginationSchema } from "../../common/paginate";
 import { CreateShiftSchema, UpdateShiftSchema, CancelShiftSchema } from "./shift-schemas";
 import * as lib from "./shift-lib";
+import { getShiftsCalendar } from "../shift-template/shift-template-lib";
 
 const router = Router();
 
@@ -16,6 +17,21 @@ router.get(
       pagination
     );
     res.json({ shifts, pagination: meta });
+  })
+);
+
+// Whole-schedule calendar over [from, to]: standalone shifts + every series'
+// occurrences (virtual + materialized). Registered before "/:id" so the literal
+// "calendar" segment isn't matched as an id.
+router.get(
+  "/calendar",
+  asyncHandler(async (req, res) => {
+    const { from, to } = req.query as Record<string, string>;
+    if (!from || !to) {
+      throw new APIError(400, "BadRequest", "from and to query params are required");
+    }
+    const occurrences = await getShiftsCalendar(new Date(from), new Date(to));
+    res.json({ occurrences });
   })
 );
 

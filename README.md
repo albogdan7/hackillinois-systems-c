@@ -128,7 +128,8 @@ Interactive docs are available at `http://localhost:3000/docs` (Swagger UI). Lis
 ### Shifts (`/shifts`)
 | Method | Path | Description |
 | --- | --- | --- |
-| GET | `/shifts` | List shifts |
+| GET | `/shifts` | List shifts (concrete rows only) |
+| GET | `/shifts/calendar?from&to` | Whole-schedule calendar: standalone shifts + all series' occurrences (virtual + materialized), merged |
 | GET | `/shifts/:id` | Get a shift (with signup counts) |
 | GET | `/shifts/:id/signups` | List a shift's signups |
 | POST | `/shifts` | Create a shift |

@@ -38,6 +38,52 @@ describe("GET /shifts", () => {
   });
 });
 
+describe("GET /shifts/calendar", () => {
+  const CAL = "?from=2026-10-01T00:00:00Z&to=2026-10-31T23:59:59Z";
+
+  it("merges standalone shifts with series occurrences, sorted by start", async () => {
+    const locId = await makeLocation();
+    await makeShift(locId, {
+      title: "Standalone",
+      startTime: "2026-10-10T09:00:00Z",
+      endTime: "2026-10-10T12:00:00Z",
+    });
+    await post("/shift-templates").send({
+      title: "Weekly Desk",
+      locationId: locId,
+      startTime: "2026-10-06T09:00:00Z",
+      endTime: "2026-10-06T12:00:00Z",
+      maxVolunteers: 3,
+      recurrenceRule: { frequency: "weekly", daysOfWeek: [1, 3], occurrences: 4 },
+      createdBy: "admin",
+    });
+
+    const res = await get(`/shifts/calendar${CAL}`);
+    expect(res.status).toBe(200);
+    // 4 virtual series slots (Oct 7,12,14,19) + 1 standalone (Oct 10), merged & sorted
+    expect(res.body.occurrences.map((o: { startTime: string }) => o.startTime)).toEqual([
+      "2026-10-07T09:00:00.000Z",
+      "2026-10-10T09:00:00.000Z",
+      "2026-10-12T09:00:00.000Z",
+      "2026-10-14T09:00:00.000Z",
+      "2026-10-19T09:00:00.000Z",
+    ]);
+
+    const standalone = res.body.occurrences.find((o: { title: string }) => o.title === "Standalone");
+    expect(standalone.concrete).toBe(true);
+    expect(standalone.seriesId).toBeUndefined();
+
+    const seriesOccs = res.body.occurrences.filter((o: { seriesId?: string }) => o.seriesId);
+    expect(seriesOccs).toHaveLength(4);
+    seriesOccs.forEach((o: { concrete: boolean }) => expect(o.concrete).toBe(false));
+  });
+
+  it("requires from and to", async () => {
+    const res = await get("/shifts/calendar");
+    expect(res.status).toBe(400);
+  });
+});
+
 describe("POST /shifts", () => {
   it("creates a shift", async () => {
     const locId = await makeLocation();

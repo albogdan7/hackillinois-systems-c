@@ -203,7 +203,7 @@ function buildRRule(startDate: Date, rule: IRecurrenceRule): RRule {
 // individually edited; otherwise it's a virtual occurrence computed from the rule
 // and reported with the series' default field values.
 export interface OccurrenceView {
-  seriesId: string;
+  seriesId?: string; // absent for a standalone (non-recurring) shift
   recurrenceId: Date; // original slot start — the stable key
   startTime: Date;
   endTime: Date;
@@ -287,12 +287,7 @@ export function expandSeries(
 // Read path: expand a series over a bounded window, overlaying concrete override
 // shifts. Virtual occurrences are reported as `published` (a series' occurrences
 // are open for signup by default).
-export async function getSeriesOccurrences(
-  id: string,
-  from: Date,
-  to: Date
-): Promise<OccurrenceView[]> {
-  const template = await getShiftTemplateById(id);
+function assertValidRange(from: Date, to: Date) {
   if (isNaN(from.getTime()) || isNaN(to.getTime())) {
     throw new APIError(400, "InvalidRange", "from and to must be valid dates");
   }
@@ -302,9 +297,64 @@ export async function getSeriesOccurrences(
   if ((to.getTime() - from.getTime()) / 86_400_000 > MAX_RANGE_DAYS) {
     throw new APIError(400, "RangeTooLarge", `Range cannot exceed ${MAX_RANGE_DAYS} days`);
   }
+}
+
+export async function getSeriesOccurrences(
+  id: string,
+  from: Date,
+  to: Date
+): Promise<OccurrenceView[]> {
+  const template = await getShiftTemplateById(id);
+  assertValidRange(from, to);
 
   const overrides = (await ShiftModel.find({ templateId: id })) as unknown as ShiftDoc[];
   return expandSeries(template.toObject() as SeriesDoc, { from, to }, overrides);
+}
+
+// Represent a standalone (non-recurring) shift in the same shape as a series
+// occurrence, so a calendar can list both uniformly.
+function shiftToOccurrence(shift: ShiftDoc): OccurrenceView {
+  return {
+    recurrenceId: shift.recurrenceId ?? shift.startTime,
+    startTime: shift.startTime,
+    endTime: shift.endTime,
+    title: shift.title,
+    description: shift.description,
+    locationId: shift.locationId.toString(),
+    eventId: shift.eventId?.toString(),
+    maxVolunteers: shift.maxVolunteers,
+    minAge: shift.minAge,
+    requiredSkills: shift.requiredSkills,
+    status: shift.status,
+    currentVolunteers: shift.currentVolunteers,
+    concrete: true,
+    shiftId: shift._id.toString(),
+  };
+}
+
+// Global calendar over a bounded window: every series expanded (virtual slots +
+// their materialized overrides) merged with standalone shifts, sorted by start.
+// This is what surfaces recurring occurrences in a whole-schedule view, which the
+// paginated GET /shifts (concrete rows only) does not.
+export async function getShiftsCalendar(from: Date, to: Date): Promise<OccurrenceView[]> {
+  assertValidRange(from, to);
+
+  const series = await ShiftTemplateModel.find({});
+  const result: OccurrenceView[] = [];
+  for (const s of series) {
+    const overrides = (await ShiftModel.find({ templateId: s._id })) as unknown as ShiftDoc[];
+    result.push(...expandSeries(s.toObject() as SeriesDoc, { from, to }, overrides));
+  }
+
+  // Standalone shifts (not materialized from any series) within the window.
+  const standalone = (await ShiftModel.find({
+    templateId: { $exists: false },
+    startTime: { $gte: from, $lte: to },
+  })) as unknown as ShiftDoc[];
+  for (const sh of standalone) result.push(shiftToOccurrence(sh));
+
+  result.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+  return result;
 }
 
 // Validate that recurrenceId is an actual slot of the series' rule (not an

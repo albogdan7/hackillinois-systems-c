@@ -703,6 +703,30 @@ registry.registerPath({
 });
 
 registry.registerPath({
+  method: "get",
+  path: "/shifts/calendar",
+  tags: ["Shifts"],
+  summary: "Whole-schedule calendar over a date range",
+  description:
+    "Merges standalone shifts with every series' occurrences (virtual + materialized) within [from, to], sorted by start. Unlike GET /shifts (concrete rows only), this surfaces recurring occurrences that have no row yet. Range is required and capped at 366 days.",
+  request: {
+    query: z.object({
+      from: z.string().datetime().openapi({ example: "2026-10-01T00:00:00Z" }),
+      to: z.string().datetime().openapi({ example: "2026-10-31T23:59:59Z" }),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Occurrences in range",
+      content: {
+        "application/json": { schema: z.object({ occurrences: z.array(OccurrenceResponse) }) },
+      },
+    },
+    400: COMMON_ERRORS[400],
+  },
+});
+
+registry.registerPath({
   method: "post",
   path: "/shifts",
   tags: ["Shifts"],
