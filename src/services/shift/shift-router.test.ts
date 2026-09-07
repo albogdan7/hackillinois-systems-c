@@ -36,6 +36,18 @@ describe("GET /shifts", () => {
     expect(res.body.shifts).toHaveLength(1);
     expect(res.body.shifts[0].status).toBe(SHIFT_STATUS.PUBLISHED);
   });
+
+  it("ignores NoSQL operator injection in query filters", async () => {
+    const locId = await makeLocation();
+    await makeShift(locId, { title: "Draft one", status: SHIFT_STATUS.DRAFT });
+    await makeShift(locId, { title: "Published one", status: SHIFT_STATUS.PUBLISHED });
+    // With qs parsing this becomes { status: { $ne: "published" } } and would hide
+    // the published shift; the simple parser makes it an inert unknown param.
+    const res = await get("/shifts?status[$ne]=published");
+    expect(res.status).toBe(200);
+    const titles = res.body.shifts.map((s: { title: string }) => s.title);
+    expect(titles).toContain("Published one");
+  });
 });
 
 describe("GET /shifts/calendar", () => {

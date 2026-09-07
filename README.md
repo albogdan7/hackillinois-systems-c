@@ -159,6 +159,8 @@ Recurring shifts follow a Google Calendar–style model: a template defines the 
 | GET | `/shift-templates/:id` | Get a template |
 | GET | `/shift-templates/:id/occurrences?from&to` | Expand a series into occurrences over a date range (virtual + materialized) |
 | POST | `/shift-templates` | Create a recurring shift template |
-| PUT | `/shift-templates/:id` | Update a template |
+| PUT | `/shift-templates/:id` | Edit the whole series — field changes propagate; a schedule (rule) change is rejected (409) once occurrences exist |
+| PUT | `/shift-templates/:id/occurrences` | Edit one occurrence (by `recurrenceId`) — materializes + detaches it |
+| PUT | `/shift-templates/:id/split` | Split "this and following" at an occurrence into a new series |
 | DELETE | `/shift-templates/:id` | Delete a template (materialized shifts are kept, detached) |
 
