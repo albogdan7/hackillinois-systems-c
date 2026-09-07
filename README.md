@@ -91,7 +91,7 @@ src/
     ├── event/        # Events (groups of shifts) — CRUD, cancel, summary stats, list shifts
     ├── shift/        # Individual shifts — CRUD, cancel, mark no-shows, list signups
     ├── signup/       # Volunteer-to-shift signups — create/list, cancel, check-in/out, status updates
-    └── shift-template/  # Recurring shift templates — CRUD; generates shifts from a recurrence rule
+    └── shift-template/  # Recurring shift templates — CRUD; occurrences expand from the rule on read, materialize on signup/edit
 ```
 
 ## API Endpoints
